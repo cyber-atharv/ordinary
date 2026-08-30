@@ -9,7 +9,10 @@ Tests:
 6. Depth-wise Metric Evaluation
 """
 
-import pytest
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import numpy as np
 import torch
 
@@ -60,7 +63,7 @@ def test_cyclone_tchp():
     test_profile = np.array([29.0, 28.8, 28.5, 28.2, 28.0, 27.5, 26.5, 25.0, 22.0, 19.0, 15.0, 11.0, 8.0, 6.5, 5.5], dtype=np.float32)
     res = compute_tchp_and_d26_numpy(test_profile, STANDARD_DEPTHS)
     assert "tchp_kj_cm2" in res
-    assert res["d26_m"] > 50.0  # 26°C isotherm around 75-100m
+    assert res["d26_m"] > 50.0  # 26 deg C isotherm around 75-100m
     assert res["tchp_kj_cm2"] > 0.0
 
 
@@ -81,3 +84,20 @@ def test_depthwise_metrics():
     metrics = compute_depthwise_metrics(t_pred, t_true)
     assert len(metrics["rmse_per_depth_degC"]) == 15
     assert metrics["mean_overall_rmse"] < 0.2
+
+
+if __name__ == "__main__":
+    print("Running pipeline unit tests...")
+    test_sturm_liouville_baroclinic_modes()
+    print("  [PASS] Sturm-Liouville Baroclinic Mode Solver")
+    test_mock_generator()
+    print("  [PASS] Mock Dataset Generator")
+    test_hyperocean_mamba_forward()
+    print("  [PASS] HyperOcean-Mamba Forward Pass")
+    test_cyclone_tchp()
+    print("  [PASS] Tropical Cyclone Heat Potential (TCHP & D26)")
+    test_tactical_sonar()
+    print("  [PASS] Mackenzie Tactical Sonar Sound Velocity Profiler")
+    test_depthwise_metrics()
+    print("  [PASS] Depth-wise Metric Evaluation")
+    print("All 6 test suites passed successfully!")

@@ -36,11 +36,11 @@ pip install copernicusmarine argopy xarray netCDF4
 # Surface data (Copernicus Marine)
 import copernicusmarine
 copernicusmarine.subset(
-    dataset_id="cmems_obs-sst_glo_phy_l4_nrt",   # example OSTIA-type SST product
-    variables=["analysed_sst"],
-    minimum_longitude=60, maximum_longitude=90,   # Indian Ocean box — pick a region, not global
-    minimum_latitude=-10, maximum_latitude=25,
-    start_datetime="2023-01-01", end_datetime="2023-12-31",
+ dataset_id="cmems_obs-sst_glo_phy_l4_nrt", # example OSTIA-type SST product
+ variables=["analysed_sst"],
+ minimum_longitude=60, maximum_longitude=90, # Indian Ocean box — pick a region, not global
+ minimum_latitude=-10, maximum_latitude=25,
+ start_datetime="2023-01-01", end_datetime="2023-12-31",
 )
 
 # Ground truth (Argo)
