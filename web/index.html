@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OceanEmbed-X — 3D Subsurface Ocean Digital Twin</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="logo-group">
+            <div class="ocean-icon">🌊</div>
+            <div>
+                <h1>OceanEmbed-X <span class="badge">MoES · SIH26066</span></h1>
+                <p class="subtitle">HyperOcean-Mamba: Continuous State-Space 3D Ocean Thermal Reconstructor</p>
+            </div>
+        </div>
+        <div class="header-stats">
+            <div class="stat-pill">
+                <span class="dot live"></span>
+                <span>Region: North Indian Ocean (5°N–30°N, 45°E–105°E)</span>
+            </div>
+            <div class="stat-pill">
+                <span class="label">Resolution:</span>
+                <span class="val">0.25° Daily</span>
+            </div>
+            <div class="stat-pill">
+                <span class="label">Depths:</span>
+                <span class="val">15 Standard Levels</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="dashboard-grid">
+        <!-- Left: Map & GIS Canvas -->
+        <section class="card map-section">
+            <div class="card-header">
+                <h2>🗺️ 2D Interactive GIS & Satellite Thermal Field</h2>
+                <div class="controls-row">
+                    <label for="depth-select">Depth:</label>
+                    <select id="depth-select">
+                        <option value="0">0 m (Surface SST)</option>
+                        <option value="5">5 m</option>
+                        <option value="10">10 m</option>
+                        <option value="20">20 m</option>
+                        <option value="30">30 m</option>
+                        <option value="50">50 m (Upper Thermocline)</option>
+                        <option value="75">75 m</option>
+                        <option value="100">100 m</option>
+                        <option value="125">125 m</option>
+                        <option value="150">150 m</option>
+                        <option value="200" selected>200 m (Mesopelagic Core)</option>
+                        <option value="300">300 m</option>
+                        <option value="500">500 m</option>
+                        <option value="700">700 m</option>
+                        <option value="1000">1000 m (Bathypelagic)</option>
+                    </select>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-floats" checked> Show Live Argo Floats
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-cyclone" checked> Cyclone Track (Biparjoy)
+                    </label>
+                </div>
+            </div>
+            
+            <div id="map-container"></div>
+            
+            <div class="map-footer">
+                <span id="click-coord-display">📍 Click anywhere in Arabian Sea / Bay of Bengal to reconstruct vertical depth profile.</span>
+            </div>
+        </section>
+
+        <!-- Right: Vertical Profile & Intelligence Analytics -->
+        <aside class="sidebar-panel">
+            <!-- Tabs -->
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="profile-tab">📈 Vertical Profile & MLD</button>
+                <button class="tab-btn" data-tab="cyclone-tab">🌀 Cyclone TCHP</button>
+                <button class="tab-btn" data-tab="sonar-tab">🛡️ Tactical Sonar SVP</button>
+            </div>
+
+            <!-- Tab 1: Profile & MLD -->
+            <div class="tab-content active" id="profile-tab">
+                <div class="metric-cards-row">
+                    <div class="mini-card">
+                        <span class="mini-title">Mixed Layer Depth</span>
+                        <span class="mini-val" id="mld-val">45.0 m</span>
+                    </div>
+                    <div class="mini-card">
+                        <span class="mini-title">26°C Isotherm (D26)</span>
+                        <span class="mini-val" id="d26-val">98.5 m</span>
+                    </div>
+                    <div class="mini-card">
+                        <span class="mini-title">TCHP Heat Content</span>
+                        <span class="mini-val highlight" id="tchp-val">84.2 kJ/cm²</span>
+                    </div>
+                </div>
+                <div id="profile-plot-container"></div>
+                <div class="info-alert">
+                    💡 <strong>In-Situ Prompting Active:</strong> Reconstructed $T(z)$ dynamically constrained by Sturm-Liouville Baroclinic Modes with 90% confidence envelope.
+                </div>
+            </div>
+
+            <!-- Tab 2: Cyclone Analytics -->
+            <div class="tab-content" id="cyclone-tab">
+                <div class="cyclone-card">
+                    <div class="cyclone-header">
+                        <h3>🌀 Cyclone Rapid Intensification (RI) Intelligence</h3>
+                        <span class="severity-badge high">High Risk</span>
+                    </div>
+                    <p class="cyclone-desc">
+                        Deep ocean thermal energy (TCHP > 60 kJ/cm²) in the Eastern Arabian Sea provides high thermodynamic fuel, feeding rapid storm intensification.
+                    </p>
+                    <div class="cyclone-stats">
+                        <div><strong>Target Storm:</strong> Severe Cyclonic Storm Biparjoy</div>
+                        <div><strong>Ocean Heat Potential:</strong> <span class="text-accent">84.2 kJ/cm² (Extreme)</span></div>
+                        <div><strong>SST Drop Prediction:</strong> -1.4°C post-passage wake</div>
+                    </div>
+                </div>
+                <div id="tchp-bar-container"></div>
+            </div>
+
+            <!-- Tab 3: Tactical Sonar -->
+            <div class="tab-content" id="sonar-tab">
+                <div class="sonar-card">
+                    <div class="sonar-header">
+                        <h3>🛡️ Naval Sonar Acoustic Profiler</h3>
+                        <span class="severity-badge defense">Naval Defense Mode</span>
+                    </div>
+                    <p class="sonar-desc">
+                        Mackenzie sound speed $C(z)$ calculation for acoustic submarine shadow zone and SOFAR channel axis detection.
+                    </p>
+                    <div class="sonar-stats">
+                        <div><strong>Surface Duct Thickness:</strong> <span id="duct-val">30.0 m</span></div>
+                        <div><strong>SOFAR Sound Channel Axis:</strong> <span id="sofar-val">900.0 m (1492 m/s)</span></div>
+                        <div><strong>Submarine Shadow Zone:</strong> <span id="shadow-val">50m – 200m</span></div>
+                    </div>
+                </div>
+                <div id="sonar-plot-container"></div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="src/app.js"></script>
+</body>
+</html>
