@@ -1,0 +1,21 @@
+{
+  "name": "ordinary",
+  "version": "1.0.0",
+  "description": "sih 2026 code OceanEmbed",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cyber-atharv/ordinary.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cyber-atharv/ordinary/issues"
+  },
+  "homepage": "https://github.com/cyber-atharv/ordinary#readme"
+}
