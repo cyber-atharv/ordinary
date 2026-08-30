@@ -1,0 +1,32 @@
+# Model Configuration for HyperOcean-Mamba (HO-Mamba)
+architecture:
+  name: "HyperOcean-Mamba"
+  variant: "HO-Mamba-v1"
+  surface_channels: 7
+  latent_dim: 128
+  num_baroclinic_modes: 5
+  patch_size: 5
+  
+sturm_liouville:
+  num_modes: 5
+  rossby_radius_r1_km: 55.0
+  min_buoyancy_frequency_n2: 1.0e-5
+
+training:
+  batch_size: 32
+  learning_rate: 0.0005
+  weight_decay: 1.0e-4
+  epochs: 50
+  scheduler: "cosine_annealing"
+  mixed_precision: true
+  device: "cuda"  # fallback to "cpu"
+
+physics_loss_weights:
+  lambda_mse_norm: 1.0
+  lambda_ape: 0.25
+  lambda_thermal_wind: 0.15
+  lambda_stratification: 0.20
+  lambda_smoothness: 0.10
+
+quantiles:
+  alpha_levels: [0.10, 0.50, 0.90]

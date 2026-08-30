@@ -1,0 +1,56 @@
+# Data Configuration for SIH26066 OceanEmbed-X
+domain:
+  name: "North Indian Ocean"
+  region: "Arabian Sea & Bay of Bengal"
+  lat_min: 5.0
+  lat_max: 30.0
+  lon_min: 45.0
+  lon_max: 105.0
+  spatial_resolution_deg: 0.25
+  temporal_resolution: "daily"
+  grid_shape: [101, 241]  # 25.25/0.25 + 1 = 101, 60.25/0.25 + 1 = 241
+
+depths:
+  # 15 standard oceanographic depth levels (meters) as per SIH26066 official problem statement
+  standard_levels: [0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]
+  num_levels: 15
+
+surface_variables:
+  channels:
+    - name: "sst"
+      long_name: "Sea Surface Temperature"
+      units: "degC"
+      source: "Copernicus OSTIA / Kaggle NASA"
+    - name: "sss"
+      long_name: "Sea Surface Salinity"
+      units: "psu"
+      source: "Copernicus Multi-Obs SSS"
+    - name: "sla"
+      long_name: "Sea Level Anomaly / SSH"
+      units: "m"
+      source: "Copernicus Altimetry"
+    - name: "u_curr"
+      long_name: "Surface Zonal Current Velocity"
+      units: "m/s"
+      source: "Copernicus Ocean Currents / GLORYS"
+    - name: "v_curr"
+      long_name: "Surface Meridional Current Velocity"
+      units: "m/s"
+      source: "Copernicus Ocean Currents / GLORYS"
+    - name: "u_wind"
+      long_name: "Surface Zonal 10m Wind"
+      units: "m/s"
+      source: "Copernicus Blended Wind / ERA5"
+    - name: "v_wind"
+      long_name: "Surface Meridional 10m Wind"
+      units: "m/s"
+      source: "Copernicus Blended Wind / ERA5"
+
+datasets:
+  kaggle_sources:
+    nasa_climate: "brsdincer/ocean-data-climate-change-nasa"
+    water_bodies: "franciscoescobar/satellite-images-of-water-bodies"
+    shifting_seas: "atharvasoundankar/shifting-seas-ocean-climate-and-marine-life-dataset"
+  in_situ:
+    source: "argopy GDAC API"
+    qc_filter: 1
