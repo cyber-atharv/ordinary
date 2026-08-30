@@ -1,7 +1,7 @@
 """
 Sturm-Liouville Baroclinic Normal Mode Solver
 Computes analytical vertical dynamical modes (Rossby deformation modes)
-from the ocean stratification buoyancy profile N^2(z).
+from the ocean stratification buoyancy profile N^2(z).01010101
 """
 
 import numpy as np
