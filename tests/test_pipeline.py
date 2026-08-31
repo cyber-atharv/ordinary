@@ -5,8 +5,9 @@ Tests:
 2. Mock Dataset Generator (7 surface channels, 15 depths)
 3. HyperOcean-Mamba Forward Pass
 4. Tropical Cyclone Heat Potential (TCHP & D26)
-5. Mackenzie Tactical Sonar Sound Velocity Profiler
+5. Mackenzie Tactical Sonar Sound Velocity Profiler (optional)
 6. Depth-wise Metric Evaluation
+7. Benchmark Report Generation
 """
 
 import sys
@@ -20,15 +21,16 @@ from src.data.sturm_liouville import STANDARD_DEPTHS, solve_baroclinic_normal_mo
 from src.data.mock_generator import generate_north_indian_ocean_dataset
 from src.models.hybrid_reconstructor import HyperOceanMamba
 from src.domain.cyclone_tchp import compute_tchp_and_d26_numpy
-from src.domain.tactical_sonar import mackenzie_sound_speed, analyze_tactical_acoustic_zones
+from src.domain.optional.tactical_sonar import mackenzie_sound_speed, analyze_tactical_acoustic_zones
 from src.evaluation.metrics import compute_depthwise_metrics
+from src.evaluation.benchmark_report import generate_depth_benchmark, print_benchmark_table
 
 
 def test_sturm_liouville_baroclinic_modes():
     modes, radii = solve_baroclinic_normal_modes(STANDARD_DEPTHS, num_modes=5)
     assert modes.shape == (5, 15), f"Expected shape (5, 15), got {modes.shape}"
     assert len(radii) == 5
-    
+
     # Test Synthesizer
     synth = BaroclinicSynthesizer(num_modes=5, depths=STANDARD_DEPTHS)
     test_amps = torch.zeros(2, 5)  # zero amplitude should yield climatology
@@ -48,11 +50,11 @@ def test_mock_generator():
 def test_hyperocean_mamba_forward():
     model = HyperOceanMamba(in_channels=7, latent_dim=64, num_modes=5)
     model.eval()
-    
+
     dummy_surf = torch.randn(2, 7, 16, 16)
     with torch.no_grad():
         out = model(dummy_surf)
-        
+
     assert "t_pred_50" in out
     assert out["t_pred_50"].shape == (2, 15, 16, 16)
     assert out["t_pred_10"].shape == (2, 15, 16, 16)
@@ -72,7 +74,7 @@ def test_tactical_sonar():
     svp = mackenzie_sound_speed(test_temp)
     assert len(svp) == 15
     assert svp[0] > 1530.0  # warm surface sound speed ~1540 m/s
-    
+
     zones = analyze_tactical_acoustic_zones(test_temp)
     assert "sofar_axis_depth_m" in zones
     assert "submarine_shadow_zone" in zones
@@ -86,6 +88,15 @@ def test_depthwise_metrics():
     assert metrics["mean_overall_rmse"] < 0.2
 
 
+def test_benchmark_report():
+    t_true = np.random.uniform(5, 30, (10, 15))
+    t_pred = t_true + np.random.normal(0, 0.5, (10, 15))
+    results = generate_depth_benchmark(t_pred, t_true)
+    assert len(results["rmse_per_depth"]) == 15
+    assert len(results["correlation_per_depth"]) == 15
+    assert results["mean_rmse"] > 0
+
+
 if __name__ == "__main__":
     print("Running pipeline unit tests...")
     test_sturm_liouville_baroclinic_modes()
@@ -97,7 +108,9 @@ if __name__ == "__main__":
     test_cyclone_tchp()
     print("  [PASS] Tropical Cyclone Heat Potential (TCHP & D26)")
     test_tactical_sonar()
-    print("  [PASS] Mackenzie Tactical Sonar Sound Velocity Profiler")
+    print("  [PASS] Mackenzie Tactical Sonar (optional)")
     test_depthwise_metrics()
     print("  [PASS] Depth-wise Metric Evaluation")
-    print("All 6 test suites passed successfully!")
+    test_benchmark_report()
+    print("  [PASS] Benchmark Report Generation")
+    print("All 7 test suites passed successfully!")
