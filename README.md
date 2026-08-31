@@ -3,6 +3,7 @@
 ### Satellite Embedding-Based Deep Learning Framework for Reconstruction of Subsurface Ocean Temperature from Surface Satellite Observations
 
 [![Ministry of Earth Sciences](https://img.shields.io/badge/MoES-Smart%20India%20Hackathon%202026-blue.svg)](https://www.sih.gov.in/)
+[![INCOIS](https://img.shields.io/badge/INCOIS-Ocean%20Information%20Services-0077b6.svg)](https://incois.gov.in/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg)](https://pytorch.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688.svg)](https://fastapi.tiangolo.com/)
@@ -12,192 +13,162 @@
 ## 1. Problem Statement
 
 | Field | Details |
-|-------|---------|
+|---|---|
 | **Problem ID** | SIH26066 |
 | **Title** | OceanEmbed -- Satellite Embedding-Based Deep Learning Framework for Reconstruction of Subsurface Ocean Temperature from Surface Satellite Observations |
 | **Organization** | Indian National Centre for Ocean Information Services (INCOIS), Ministry of Earth Sciences |
 | **Category** | Software |
-| **Theme** | Disaster Management |
+| **Theme** | Disaster Management & Marine Ecosystem Services |
 
-**Objective**: Develop a deep learning framework that uses surface satellite observations to reconstruct 3D subsurface ocean temperature profiles from 0 to 1000 meters depth across the North Indian Ocean at 0.25 deg daily resolution.
+**Objective**: Develop an end-to-end deep learning framework that uses 2D surface satellite observations (SST, SSS, SSH, currents, winds) to accurately reconstruct the continuous 3D subsurface ocean temperature field from 0 to 1000 meters depth across the North Indian Ocean at $0.25^\circ$ daily resolution.
 
-**Target Region**: North Indian Ocean (5 deg N to 30 deg N, 45 deg E to 105 deg E) -- Arabian Sea and Bay of Bengal
+**Target Region**: North Indian Ocean ($5^\circ\text{N}\text{ to }30^\circ\text{N}, 45^\circ\text{E}\text{ to }105^\circ\text{E}$) -- Arabian Sea & Bay of Bengal
 
-**Standard Depth Levels (m)**: 0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000
-
----
-
-## 2. Approach Overview
-
-Our framework reconstructs subsurface temperature through four stages:
-
-1. **Preprocessing**: Harmonize multi-source satellite products (SST, SSS, SSH, currents, winds) onto a unified 0.25 deg daily grid using xarray and CDO.
-
-2. **Satellite Embedding**: Compress 7-channel surface observations into a compact latent representation using a 2D Selective State-Space Model (Mamba SSM) with linear O(N) complexity. The embedding captures mesoscale eddy signatures, thermocline displacement patterns, and wind-driven mixing dynamics that are invisible in raw pixels.
-
-3. **Physics-Guided Reconstruction**: Instead of regressing 15 independent depth levels, predict 5 baroclinic normal mode amplitude coefficients. The final temperature profile is synthesized as:
-   ```
-   T(x, y, z) = T_clim(z) + sum a_m(x,y) * Phi_m(z)
-   ```
-   This enforces gravitational stability (N^2 >= 0) by construction and respects known ocean vertical structure.
-
-4. **Validation**: Evaluate against independent ARGO float observations using depth-stratified RMSE, Bias, and Pearson Correlation across all 15 standard depth levels.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical specifications.
+**15 Standard Oceanographic Depths (m)**: `[0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000]`
 
 ---
 
-## 3. Input and Target Datasets
+## 2. Key Framework Innovations
 
-All datasets are specified by the INCOIS problem statement and regridded to 0.25 deg x 0.25 deg daily resolution.
+1. **Satellite Embedding Engine (OceanMamba SSM)**:
+   - Uses 2D Selective State-Space Models (SS2D) with **linear $\mathcal{O}(N)$ complexity** to compress 7-channel surface observations into a 128-dimensional latent state-space vector ($z \in \mathbb{R}^{128}$).
+   - Captures invisible mesoscale eddy vorticity, planetary Rossby wave phase, and vertical advection memory without quadratic attention overhead.
 
-### Surface Input Variables
+2. **Analytical Sturm-Liouville Normal Mode Synthesis**:
+   - Solves the vertical eigenvalue problem for stratified ocean dynamics, predicting 5 baroclinic mode weights rather than 15 unconstrained depth layers.
+   - Guarantees **strictly zero buoyancy inversions ($N^2(z) \ge 0$)** by construction.
 
-| Variable | Product | Native Resolution | DOI / Source |
-|----------|---------|-------------------|-------------|
-| SST | OSTIA | 0.05 deg, daily | https://doi.org/10.48670/moi-00168 |
-| SSS | SMAP / SMOS | 0.125 deg, daily | https://doi.org/10.48670/moi-00051 |
-| SSH / SLA | DUACS | 0.25 deg, daily | https://doi.org/10.48670/moi-00145 |
-| Currents (U, V) | OSCAR L4 v2.0 | 0.25 deg, daily | PODAAC |
-| Winds (U, V) | CCMP v3.1 / ASCAT | 0.25 deg, 6-hourly | PODAAC |
+3. **In-Situ Neural 4D-Var Float Cross-Attention**:
+   - Ingests today's live sparse Argo float soundings as prompt tokens, achieving near-zero error at active float positions while propagating corrections across surrounding eddies.
 
-### Training Target
+4. **INCOIS Operational & Ecosystem Innovation Suite**:
+   - **Tropical Cyclone Heat Potential (TCHP & $D_{26}$)**: Early warning for Cyclone Rapid Intensification in Arabian Sea / Bay of Bengal.
+   - **Potential Fishing Zone (PFZ) & $D_{20}$ Upwelling**: Identifies the $20^\circ\text{C}$ isotherm depth and thermocline slope to power INCOIS's daily coastal fisheries advisory ($>500,000$ fishermen).
+   - **INCOIS OOSA: Oil Spill & Microplastic Dispersion**: Models vertical droplet mixing depth ($z_{\text{droplet}}$) and microplastic submergence zone ($0\text{--}150\text{m}$) driven by Mixed Layer Depth ($\text{MLD}$) and $N^2(z)$ stratification.
+   - **Intelligent Active Sampling Float Drop Optimizer**: Analyzes model quantile variance to recommend optimal GPS deployment coordinates for MoES research vessels (*ORV Sagar Nidhi*).
 
-| Variable | Product | Details |
-|----------|---------|---------|
-| Subsurface Temperature | GLORYS12V1 Global Ocean Reanalysis | https://doi.org/10.48670/moi-00021 |
-
-### Validation
-
-| Source | Details |
-|--------|---------|
-| Gridded ARGO | INCOIS Live Access Server (LAS) |
-| Individual Argo Floats | Via argopy GDAC API |
+5. **15-Depth Verification Benchmark Scorecard**:
+   - Automated evaluation across all 15 standard depths reporting RMSE, MAE, Bias, and Pearson Correlation ($r$) against independent ARGO in-situ soundings.
 
 ---
 
-## 4. Directory Structure
+## 3. Directory Structure
 
 ```
 ordinary/
-|-- ARCHITECTURE.md          # Technical architecture and design decisions
-|-- README.md                # This file
-|-- requirements.txt         # Python dependencies
-|-- .gitignore               # Standard Python/data gitignore rules
-|
-|-- config/
-|   |-- data_config.yaml     # Bounding box, depth levels, dataset paths
-|   +-- model_config.yaml    # Model hyperparameters and loss weights
-|
-|-- data/                    # Data storage (git-ignored)
-|   |-- raw/                 # Downloaded satellite and reanalysis NetCDFs
-|   |-- processed/           # Regridded 0.25 deg daily arrays
-|   +-- synthetic/           # Offline physical test arrays
-|
-|-- src/                     # Core Python modules
-|   |-- data/                # Data ingestion, preprocessing, and physics
-|   |   |-- glorys_loader.py         # GLORYS12V1 training target downloader
-|   |   |-- satellite_fetcher.py     # OSTIA, SMAP, DUACS, OSCAR, CCMP fetcher
-|   |   |-- incois_argo_pipeline.py  # INCOIS LAS gridded ARGO validation data
-|   |   |-- argo_pipeline.py         # argopy GDAC float profile retrieval
-|   |   |-- sturm_liouville.py       # Baroclinic normal mode solver
-|   |   +-- mock_generator.py        # Synthetic data generator for offline dev
-|   |
-|   |-- models/              # Neural network architectures
-|   |   |-- ocean_mamba.py           # 2D Selective State-Space embedding backbone
-|   |   |-- in_situ_prompting.py     # Neural 4D-Var cross-attention float assimilation
-|   |   |-- latent_embedder.py       # Satellite embedding exporter and visualizer
-|   |   |-- physics_loss.py          # Physics-constrained loss with stability penalty
-|   |   +-- hybrid_reconstructor.py  # Full pipeline: embedding -> modes -> 3D field
-|   |
-|   |-- evaluation/          # Metrics and benchmarking
-|   |   |-- metrics.py               # Depth-stratified RMSE, MAE, Bias, Correlation
-|   |   +-- benchmark_report.py      # 15-depth formatted evaluation scorecard
-|   |
-|   |-- domain/              # Downstream INCOIS applications
-|   |   +-- cyclone_tchp.py          # Tropical Cyclone Heat Potential (TCHP & D26)
-|   |
-|   +-- api/                 # REST API backend
-|       |-- main.py                  # FastAPI endpoints
-|       +-- schemas.py               # Pydantic request/response models
-|
-|-- web/                     # Frontend web application
-|   |-- index.html           # Interactive ocean digital twin dashboard
-|   +-- src/                 # JavaScript, CSS, Leaflet/Plotly visualization
-|
-|-- notebooks/               # Jupyter/Colab training notebooks
-|   +-- OceanEmbed_X_Colab_Training.ipynb
-|
-+-- tests/                   # Automated verification tests
-    +-- test_pipeline.py
+├── ARCHITECTURE.md                  # Master technical specifications & mathematical formulations
+├── README.md                        # Project quickstart & dataset specifications
+├── run_pipeline.py                  # Single-command end-to-end operational runner
+├── requirements.txt                 # Python dependencies
+├── .gitignore                       # Clean git ignore rules
+│
+├── config/
+│   ├── data_config.yaml             # 5°N-30°N, 45°E-105°E bounding box & 15 depths
+│   └── model_config.yaml            # HyperOcean-Mamba hyperparameters
+│
+├── outputs/                         # Exported embeddings & benchmark scorecards
+│   ├── satellite_embeddings.npz     # 128-dimensional latent embeddings
+│   └── incois_15depth_benchmark_scorecard.csv # Depth-stratified evaluation table
+│
+├── src/
+│   ├── data/                        # Ingestion, Harmonization & Physics Solvers
+│   │   ├── glorys_loader.py         # GLORYS12V1 reanalysis target loader
+│   │   ├── satellite_fetcher.py     # OSTIA SST, SMAP SSS, DUACS SSH, OSCAR, CCMP
+│   │   ├── incois_argo_pipeline.py  # INCOIS LAS Gridded ARGO validation data fetcher
+│   │   ├── argo_pipeline.py         # argopy GDAC live float collector
+│   │   ├── sturm_liouville.py       # Analytical Baroclinic Normal Mode solver
+│   │   └── mock_generator.py        # Offline synthetic generator (instant dev)
+│   │
+│   ├── models/                      # Deep Learning Architectures
+│   │   ├── ocean_mamba.py           # 2D Selective State-Space Embedding Engine
+│   │   ├── in_situ_prompting.py     # Neural 4D-Var Float Cross-Attention Block
+│   │   ├── latent_embedder.py       # Satellite Latent Embedding Exporter & Stats
+│   │   ├── physics_loss.py          # Buoyancy stability & depth-weighted loss
+│   │   └── hybrid_reconstructor.py  # Master Reconstructor: T(z) = T_clim + Σ a_m Φ_m
+│   │
+│   ├── evaluation/                  # Metrics & Benchmarking
+│   │   ├── metrics.py               # Depth-wise RMSE, MAE, Bias, Pearson R, Skill Score
+│   │   └── benchmark_report.py      # 15-Depth Scorecard & CSV Exporter
+│   │
+│   ├── domain/                      # INCOIS Operational & Ecosystem Services
+│   │   ├── cyclone_tchp.py          # Cyclone Rapid Intensification (TCHP & D26)
+│   │   ├── pfz_upwelling.py         # Potential Fishing Zone & D20 Upwelling
+│   │   ├── oil_and_plastic.py       # INCOIS OOSA Oil Spill & Plastic Dispersion
+│   │   └── active_sampling.py       # Optimal Argo Float Drop Recommender
+│   │
+│   └── api/                         # Operational REST API Server
+│       ├── main.py                  # FastAPI high-speed endpoints (<10ms)
+│       └── schemas.py               # Pydantic request/response models
+│
+├── web/                             # Web GIS Digital Twin Dashboard
+│   ├── index.html                   # 5-Tab Interface (Profile, Embedding, TCHP, PFZ, Scorecard)
+│   └── src/
+│       ├── app.js                   # Interactive Leaflet & Plotly visualization engine
+│       └── style.css
+│
+├── notebooks/
+│   └── OceanEmbed_X_Colab_Training.ipynb  # Clean zero-emoji training notebook
+│
+└── tests/
+    └── test_pipeline.py             # 9-suite automated verification tests
 ```
 
 ---
 
-## 5. Quickstart
+## 4. Quickstart & Usage
 
+### 1. Setup Environment
 ```bash
-# 1. Clone the repository
+# Clone the repository
 git clone https://github.com/cyber-atharv/ordinary.git
 cd ordinary
 
-# 2. Create and activate virtual environment
+# Create and activate virtual environment
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # Linux / macOS
 
-# 3. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
-
-# 4. Run verification tests (uses synthetic data, no downloads needed)
-python tests/test_pipeline.py
-
-# 5. Start the FastAPI server and web dashboard
-uvicorn src.api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Then open http://localhost:8000 for the interactive ocean dashboard, or http://localhost:8000/docs for the Swagger API documentation.
+### 2. Run Automated Test Suite (9 Test Suites)
+```bash
+python tests/test_pipeline.py
+```
+
+### 3. Run Master Operational Pipeline Demo
+```bash
+python run_pipeline.py --mode demo
+```
+*Executes all 6 stages in ~1.5s, exporting `outputs/satellite_embeddings.npz` and `outputs/incois_15depth_benchmark_scorecard.csv`.*
+
+### 4. Launch Operational FastAPI Server & Web GIS Dashboard
+```bash
+uvicorn src.api.main:app --host 127.0.0.1 --port 8000 --reload
+```
+- **Web GIS Digital Twin**: [http://localhost:8000/](http://localhost:8000/)
+- **Interactive Swagger API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc Schema Documentation**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
-## 6. Key Technical Highlights
+## 5. Input and Target Datasets (Per INCOIS Guidelines)
 
-- **Satellite Embedding Engine**: 2D Mamba SSM with O(N) linear complexity produces compact latent representations of surface ocean state. Embeddings are exportable for visualization and evaluation.
+| Variable | Recommended Product | Native Resolution | Source / Citation |
+|---|---|---|---|
+| **SST** | OSTIA | $0.05^\circ$, daily | [doi:10.48670/moi-00168](https://doi.org/10.48670/moi-00168) |
+| **SSS** | SMAP / SMOS | $0.125^\circ$, daily | [doi:10.48670/moi-00051](https://doi.org/10.48670/moi-00051) |
+| **SSH / SLA** | DUACS | $0.25^\circ$, daily | [doi:10.48670/moi-00145](https://doi.org/10.48670/moi-00145) |
+| **Currents (U, V)** | OSCAR L4 v2.0 | $0.25^\circ$, daily | [PODAAC OSCAR](https://podaac.jpl.nasa.gov/dataset/OSCAR_L4_OC_FINAL_V2.0) |
+| **Winds (U, V)** | CCMP v3.1 / ASCAT | $0.25^\circ$, 6-hourly | [PODAAC CCMP](https://podaac.jpl.nasa.gov/dataset/CCMP_WINDS_10M6HR_L4_V3.1) |
+| **Target: Subsurface Temp** | GLORYS12V1 | $0.083^\circ$, daily | [doi:10.48670/moi-00021](https://doi.org/10.48670/moi-00021) |
+| **Validation: In-Situ** | Gridded ARGO | Point / Gridded | [INCOIS Live Access Server (LAS)](https://incois.gov.in) |
 
-- **Physics-Constrained Reconstruction**: Sturm-Liouville baroclinic normal mode decomposition guarantees physically consistent vertical profiles (no density inversions).
-
-- **In-Situ Assimilation**: Cross-attention mechanism fuses live Argo float observations with satellite embeddings, achieving near-zero error at float positions while propagating corrections basin-wide.
-
-- **Uncertainty Quantification**: Multi-quantile prediction heads provide 10th, 50th, and 90th percentile confidence bounds for risk-aware downstream applications.
-
-- **Depth-Stratified Benchmarking**: Automated evaluation across all 15 standard depth levels with RMSE, Bias, and Correlation metrics per INCOIS requirements.
-
----
-
-## 7. Expected Output
-
-The framework produces:
-- Daily 3D subsurface temperature reconstruction at 0.25 deg x 0.25 deg across 15 standard depths (0 to 1000m)
-- Exportable satellite latent embeddings for analysis
-- Depth-stratified evaluation scorecard (RMSE, Bias, Correlation per depth layer)
-- Interactive proof-of-concept visualization over the Bay of Bengal and Arabian Sea
+All datasets are regridded to $0.25^\circ \times 0.25^\circ$ daily uniform resolution.
 
 ---
 
-## 8. References
+## 6. License
 
-- Copernicus Marine GLORYS12V1: https://doi.org/10.48670/moi-00021
-- OSTIA SST: https://doi.org/10.48670/moi-00168
-- SMAP/SMOS SSS: https://doi.org/10.48670/moi-00051
-- DUACS SSH/SLA: https://doi.org/10.48670/moi-00145
-- OSCAR L4 Currents: https://podaac.jpl.nasa.gov/dataset/OSCAR_L4_OC_FINAL_V2.0
-- CCMP Winds: https://podaac.jpl.nasa.gov/dataset/CCMP_WINDS_10M6HR_L4_V3.1
-- ASCAT Coastal Winds: https://podaac.jpl.nasa.gov/dataset/ASCATC-L2-Coastal
-- INCOIS: https://incois.gov.in
-- Gu et al., "Mamba: Linear-Time Sequence Modeling with Selective State Spaces" (2023)
-
----
-
-## License
-
-This project is developed for the Smart India Hackathon 2026 under INCOIS / Ministry of Earth Sciences guidelines.
+Developed for the Smart India Hackathon 2026 under the Indian National Centre for Ocean Information Services (INCOIS) / Ministry of Earth Sciences (MoES) problem statement.
