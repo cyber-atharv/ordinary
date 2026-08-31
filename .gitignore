@@ -65,3 +65,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Large pipeline outputs
+outputs/*.npz

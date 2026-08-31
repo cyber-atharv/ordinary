@@ -1,6 +1,7 @@
-"""Domain analytics modules for OceanEmbed-X."""
+"""
+INCOIS Operational & Ecosystem Domain Modules for OceanEmbed-X
+"""
 from src.domain.cyclone_tchp import compute_tchp_and_d26_numpy
-
-# Optional modules (not part of core INCOIS evaluation scope)
-# from src.domain.optional.tactical_sonar import mackenzie_sound_speed
-# from src.domain.optional.marine_heatwave import detect_subsurface_marine_heatwaves
+from src.domain.pfz_upwelling import compute_d20_isotherm_depth, analyze_pfz_and_upwelling
+from src.domain.oil_and_plastic import analyze_oil_spill_and_plastic_dispersion
+from src.domain.active_sampling import recommend_optimal_float_drops

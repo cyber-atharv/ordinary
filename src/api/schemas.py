@@ -24,9 +24,10 @@ class ProfilePredictionResponse(BaseModel):
     climatology_baseline: List[float]
     mld_m: float
     d26_m: float
+    d20_m: float
     tchp_kj_cm2: float
-    sonar_analysis: Dict[str, Any]
-    marine_heatwave: Dict[str, Any]
+    pfz_upwelling: Dict[str, Any]
+    oil_and_plastic_risk: Dict[str, Any]
 
 
 class DepthSliceRequest(BaseModel):
@@ -41,3 +42,13 @@ class ActiveFloatModel(BaseModel):
     qc_flag: int
     temperatures: List[float]
     depths: List[float]
+
+
+class EmbeddingInspectionResponse(BaseModel):
+    latitude: float
+    longitude: float
+    latent_dimension: int
+    channel_statistics: List[Dict[str, Any]]
+    dominant_mode_weights: List[float]
+    spatial_eddy_energy: float
+    summary: str
