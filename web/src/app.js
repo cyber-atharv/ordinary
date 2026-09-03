@@ -288,7 +288,8 @@ function isLandCoordinate(lat, lon) {
 }
 
 /**
- * Fast analytical physics model for North Indian Ocean basin with high-resolution coastline adherence
+ * Analytical Continuous Physics Engine for North Indian Ocean Digital Twin
+ * Pure C-infinity smooth mathematical formulations (Zero step cliffs, Zero rectangular boundaries)
  */
 function computePhysicalGrid(variable, depthM, dayOffset) {
     const minLat = 5.0, maxLat = 30.0, minLon = 45.0, maxLon = 105.0;
@@ -307,30 +308,100 @@ function computePhysicalGrid(variable, depthM, dayOffset) {
         for (let j = 0; j < nLon; j++) {
             const lon = lons[j];
 
-            // Strict Land-Sea Mask Check
+            // Strict Land-Sea Mask Check (100% Transparent on Land)
             if (isLandCoordinate(lat, lon)) {
                 row.push(null);
                 continue;
             }
 
-            let val = 0;
-            // Physical formulations based on basin, latitude, depth, and synoptic perturbation
-            const synopticPhase = Math.sin(lon * 0.12 + dayOffset * 0.4) * Math.cos(lat * 0.15);
-            const mesoscaleEddy = Math.sin((lon - 65) * 0.3) * Math.cos((lat - 15) * 0.3) * 0.25;
+            // --- 1. Pure Continuous Oceanographic Dynamics (Zero Discontinuities) ---
+            // Smooth sigmoid basin transition across Peninsular India / Sri Lanka (centered at 78.5°E)
+            const bobWeight = 1.0 / (1.0 + Math.exp(-(lon - 78.5) / 2.8));
+            const asWeight = 1.0 - bobWeight;
 
-            // Surface Baseline
-            const sstBase = (lon < 78) 
-                ? (28.2 + (lat < 12 ? -1.8 : (lat > 22 ? 0.8 : 0.4)) + (lon < 56 ? -3.2 : 0.5)) // Arabian Sea & Somali Upwelling
-                : (29.2 + (lat > 18 ? 0.6 : -0.2)); // Bay of Bengal Warm Pool
-            const sst = sstBase + synopticPhase * 0.4 + mesoscaleEddy;
+            // Smooth 2D Gaussian Oceanographic Cores (continuous decay, zero sharp seams)
+            // Somali Cold Coastal Upwelling Core (9.5°N, 52.5°E)
+            const dLatSomali = (lat - 9.5) / 4.2;
+            const dLonSomali = (lon - 52.5) / 4.8;
+            const somaliCore = Math.exp(-(dLatSomali * dLatSomali + dLonSomali * dLonSomali));
 
-            const sssBase = (lon < 78) ? 36.2 - (lat < 10 ? 1.0 : 0) : 32.5 - (lat > 18 ? 2.8 : 0.6);
-            const sss = sssBase + (synopticPhase * 0.2);
+            // Arabian Sea Mini Warm Pool (13.0°N, 67.5°E)
+            const dLatASWP = (lat - 13.0) / 4.8;
+            const dLonASWP = (lon - 67.5) / 5.2;
+            const aswpCore = Math.exp(-(dLatASWP * dLatASWP + dLonASWP * dLonASWP));
 
-            const slaBase = (lon < 78) ? (0.05 + mesoscaleEddy) : (0.12 + synopticPhase * 0.08);
-            const sla = slaBase;
+            // Bay of Bengal Warm Gyre (15.0°N, 88.0°E)
+            const dLatBoB = (lat - 15.0) / 5.0;
+            const dLonBoB = (lon - 88.0) / 5.5;
+            const bobCore = Math.exp(-(dLatBoB * dLatBoB + dLonBoB * dLonBoB));
+
+            // Head Bay of Bengal River Discharge Plume (Ganges Delta at 21.2°N, 89.5°E)
+            const dLatHead = (lat - 21.2) / 3.0;
+            const dLonHead = (lon - 89.5) / 3.6;
+            const headPlume = Math.exp(-(dLatHead * dLatHead + dLonHead * dLonHead));
+
+            // Andaman Sea Basin Feature (11.5°N, 94.0°E)
+            const dLatAndaman = (lat - 11.5) / 4.5;
+            const dLonAndaman = (lon - 94.0) / 4.5;
+            const andamanCore = Math.exp(-(dLatAndaman * dLatAndaman + dLonAndaman * dLonAndaman));
+
+            // Smooth Continuous Planetary Waves (Rossby & Ekman Modes)
+            const synopticPhase = Math.sin(lon * 0.10 + dayOffset * 0.4) * Math.cos(lat * 0.12);
+            const mesoscaleEddy = Math.sin((lon - 66.0) * 0.28) * Math.cos((lat - 14.0) * 0.28) * 0.22;
+
+            // Continuous Sea Surface Temperature (SST in °C)
+            // Solar heating background: ~29.5°C in equatorial band smoothly falling to ~27.2°C at 24°N
+            const latGradientSST = 29.5 - 0.09 * (lat - 5.0);
+            const sst = latGradientSST 
+                + 0.75 * aswpCore 
+                + 0.65 * bobCore 
+                + 0.35 * andamanCore
+                - 3.40 * somaliCore 
+                - 0.55 * headPlume 
+                + 0.30 * mesoscaleEddy 
+                + 0.20 * synopticPhase;
+
+            // Continuous Sea Surface Salinity (SSS in PSU)
+            // Arabian Sea evaporation (~36.4 PSU) to Bay of Bengal precipitation/runoff (~32.6 PSU)
+            const sss = (36.4 * asWeight + 32.6 * bobWeight) 
+                - 2.8 * headPlume 
+                + 0.3 * aswpCore 
+                + 0.15 * synopticPhase;
+
+            // Continuous Sea Level Anomaly (SLA in m) & Dynamic Height (SSH in m)
+            const sla = (0.05 * asWeight + 0.12 * bobWeight) 
+                + 0.18 * aswpCore 
+                - 0.24 * somaliCore 
+                + 0.16 * bobCore 
+                + 0.08 * mesoscaleEddy;
             const ssh = 0.95 + sla;
 
+            // Continuous Geostrophic + Ekman Surface Currents (m/s)
+            const currentSpeed = 0.28 + 0.95 * somaliCore + 0.22 * aswpCore + 0.15 * Math.abs(synopticPhase);
+
+            // Continuous Surface Wind Speed (m/s)
+            const windSpeed = 6.5 + 4.2 * Math.sin((lat - 4.0) * 0.12) + 2.8 * somaliCore + 1.2 * Math.abs(synopticPhase);
+
+            // Continuous Mixed Layer Depth (MLD in m)
+            const mld = (44.0 * asWeight + 32.0 * bobWeight) 
+                + 18.0 * somaliCore 
+                - 6.0 * headPlume 
+                + 4.0 * synopticPhase;
+
+            // Continuous D20 Upwelling Thermocline Depth (m)
+            const d20 = (116.0 * asWeight + 128.0 * bobWeight) 
+                - 58.0 * somaliCore 
+                + 14.0 * aswpCore 
+                + 16.0 * bobCore;
+
+            // Continuous Cyclone Tropical Heat Potential (TCHP in kJ/cm²)
+            const tchp = Math.max(15, (74.0 * asWeight + 95.0 * bobWeight) 
+                - 42.0 * somaliCore 
+                + 14.0 * aswpCore 
+                + 18.0 * bobCore 
+                + (sst - 28.5) * 12.0);
+
+            let val = 0;
             if (variable === "sst") {
                 val = sst;
             } else if (variable === "sss") {
@@ -340,24 +411,22 @@ function computePhysicalGrid(variable, depthM, dayOffset) {
             } else if (variable === "ssh") {
                 val = ssh;
             } else if (variable === "currents") {
-                const u = 0.35 * Math.sin(lat * 0.2) + (lon < 55 ? 0.9 : 0.1);
-                const v = 0.25 * Math.cos(lon * 0.2);
-                val = Math.sqrt(u * u + v * v) + Math.abs(synopticPhase) * 0.15;
+                val = currentSpeed;
             } else if (variable === "wind") {
-                val = 6.5 + 4.5 * Math.sin(lat * 0.1) + Math.abs(synopticPhase) * 2.0;
+                val = windSpeed;
             } else if (variable === "tchp") {
-                val = Math.max(10, 85 - (depthM * 0.05) + (sst - 28) * 18 + (lon > 80 ? 15 : 0) + synopticPhase * 8);
+                val = tchp;
             } else if (variable === "d20") {
-                val = 110 - (lon < 55 ? 45 : 0) + (lon > 85 ? 20 : 0) + mesoscaleEddy * 25;
+                val = d20;
             } else if (variable === "mld") {
-                val = 40 + (lon < 60 ? 25 : 0) - (lon > 85 ? 12 : 0) + synopticPhase * 5;
+                val = mld;
             } else {
-                // 3D Subsurface Temperature Field
-                const mld = 35 + (lon < 60 ? 20 : 0);
-                const hThermocline = 130 + mesoscaleEddy * 30;
-                const tAbyssal = 3.8;
+                // 3D Subsurface Temperature Field across standard depth levels
+                // Continuous thermocline scale thickness H_th
+                const hThermocline = 135.0 + 25.0 * aswpCore - 35.0 * somaliCore + 20.0 * bobCore;
+                const tAbyssal = 3.6; // Deep ocean temperature at 1000m
                 if (depthM <= mld) {
-                    val = sst - (depthM / mld) * 0.4;
+                    val = sst - (depthM / Math.max(1, mld)) * 0.35;
                 } else {
                     const zRel = depthM - mld;
                     val = tAbyssal + (sst - tAbyssal) * Math.exp(-zRel / hThermocline);
@@ -376,59 +445,96 @@ function computePhysicalGrid(variable, depthM, dayOffset) {
 }
 
 /**
- * Colormap Generator for Canvas Rendering
+ * Colormap Generator with Smooth Cubic / Hermite Spline Easing (Zero Banding)
  */
 function getVariableColormapColor(val, minVal, maxVal, variable) {
     if (val === null || isNaN(val)) return [0, 0, 0, 0];
     let norm = (val - minVal) / (maxVal - minVal + 1e-6);
     norm = Math.max(0, Math.min(1, norm));
 
-    let r = 0, g = 0, b = 0, a = 190;
+    let r = 0, g = 0, b = 0, a = 185;
 
     if (variable === "temp" || variable === "sst") {
-        // Deep Ocean Turbo / Thermal: Deep Navy -> Cyan -> Emerald -> Yellow -> Crimson
-        if (norm < 0.25) {
-            const t = norm / 0.25;
-            r = Math.floor(15 + 10 * t);
-            g = Math.floor(25 + 160 * t);
-            b = Math.floor(130 + 125 * t);
-        } else if (norm < 0.5) {
-            const t = (norm - 0.25) / 0.25;
-            r = Math.floor(25 + 20 * t);
-            g = Math.floor(185 + 50 * t);
-            b = Math.floor(255 - 120 * t);
-        } else if (norm < 0.75) {
-            const t = (norm - 0.5) / 0.25;
-            r = Math.floor(45 + 200 * t);
-            g = Math.floor(235 - 35 * t);
-            b = Math.floor(135 - 110 * t);
-        } else {
-            const t = (norm - 0.75) / 0.25;
-            r = Math.floor(245 + 10 * t);
-            g = Math.floor(200 - 160 * t);
-            b = Math.floor(25 - 5 * t);
+        // High-fidelity smooth Ocean Thermal Colormap:
+        // Deep Navy (0.0) -> Royal Blue (0.2) -> Cyan (0.4) -> Sea Green (0.6) -> Gold (0.8) -> Crimson (1.0)
+        const stops = [
+            { pos: 0.00, r: 8,   g: 28,  b: 95 },
+            { pos: 0.20, r: 14,  g: 95,  b: 195 },
+            { pos: 0.40, r: 0,   g: 212, b: 255 },
+            { pos: 0.60, r: 24,  g: 195, b: 125 },
+            { pos: 0.80, r: 250, g: 190, b: 35 },
+            { pos: 1.00, r: 225, g: 38,  b: 38 }
+        ];
+        let c1 = stops[0], c2 = stops[stops.length - 1];
+        for (let k = 0; k < stops.length - 1; k++) {
+            if (norm >= stops[k].pos && norm <= stops[k + 1].pos) {
+                c1 = stops[k];
+                c2 = stops[k + 1];
+                break;
+            }
         }
+        const t = (norm - c1.pos) / (c2.pos - c1.pos + 1e-6);
+        const smoothT = t * t * (3 - 2 * t);
+        r = Math.floor(c1.r + (c2.r - c1.r) * smoothT);
+        g = Math.floor(c1.g + (c2.g - c1.g) * smoothT);
+        b = Math.floor(c1.b + (c2.b - c1.b) * smoothT);
     } else if (variable === "tchp") {
-        // Gold to Crimson Heat Potential
-        r = Math.floor(40 + 215 * norm);
-        g = Math.floor(180 * (1 - norm * 0.85));
-        b = Math.floor(25 + 20 * (1 - norm));
-        a = 205;
-    } else if (variable === "d20") {
-        // Cyan to Deep Navy Upwelling
-        r = Math.floor(20 + 80 * (1 - norm));
-        g = Math.floor(220 * (1 - norm * 0.65));
-        b = Math.floor(255 * (1 - norm * 0.35));
+        // Heat potential: Deep amber to brilliant crimson
+        const stops = [
+            { pos: 0.0,  r: 45,  g: 25,  b: 5 },
+            { pos: 0.35, r: 180, g: 100, b: 15 },
+            { pos: 0.70, r: 245, g: 85,  b: 20 },
+            { pos: 1.0,  r: 235, g: 25,  b: 40 }
+        ];
+        let c1 = stops[0], c2 = stops[stops.length - 1];
+        for (let k = 0; k < stops.length - 1; k++) {
+            if (norm >= stops[k].pos && norm <= stops[k + 1].pos) {
+                c1 = stops[k]; c2 = stops[k + 1]; break;
+            }
+        }
+        const t = (norm - c1.pos) / (c2.pos - c1.pos + 1e-6);
+        const smoothT = t * t * (3 - 2 * t);
+        r = Math.floor(c1.r + (c2.r - c1.r) * smoothT);
+        g = Math.floor(c1.g + (c2.g - c1.g) * smoothT);
+        b = Math.floor(c1.b + (c2.b - c1.b) * smoothT);
     } else if (variable === "sss") {
-        // Haline Salinity Spectrum (Deep Green to Indigo)
-        r = Math.floor(10 + 180 * norm);
-        g = Math.floor(190 * (1 - norm * 0.6));
-        b = Math.floor(160 + 95 * norm);
+        // Haline Salinity Spectrum (Fresh Turquoise -> Saline Deep Violet)
+        const stops = [
+            { pos: 0.0, r: 20,  g: 195, b: 160 },
+            { pos: 0.5, r: 35,  g: 130, b: 225 },
+            { pos: 1.0, r: 125, g: 45,  b: 215 }
+        ];
+        let c1 = stops[0], c2 = stops[stops.length - 1];
+        for (let k = 0; k < stops.length - 1; k++) {
+            if (norm >= stops[k].pos && norm <= stops[k + 1].pos) {
+                c1 = stops[k]; c2 = stops[k + 1]; break;
+            }
+        }
+        const t = (norm - c1.pos) / (c2.pos - c1.pos + 1e-6);
+        const smoothT = t * t * (3 - 2 * t);
+        r = Math.floor(c1.r + (c2.r - c1.r) * smoothT);
+        g = Math.floor(c1.g + (c2.g - c1.g) * smoothT);
+        b = Math.floor(c1.b + (c2.b - c1.b) * smoothT);
     } else {
         // Viridis Spectral
-        r = Math.floor(255 * (0.15 + 0.85 * norm));
-        g = Math.floor(255 * (0.2 + 0.8 * Math.sin(norm * Math.PI)));
-        b = Math.floor(255 * (0.85 - 0.65 * norm));
+        const stops = [
+            { pos: 0.0,  r: 68,  g: 1,   b: 84 },
+            { pos: 0.25, r: 59,  g: 82,  b: 139 },
+            { pos: 0.50, r: 33,  g: 145, b: 140 },
+            { pos: 0.75, r: 94,  g: 201, b: 98 },
+            { pos: 1.0,  r: 253, g: 231, b: 37 }
+        ];
+        let c1 = stops[0], c2 = stops[stops.length - 1];
+        for (let k = 0; k < stops.length - 1; k++) {
+            if (norm >= stops[k].pos && norm <= stops[k + 1].pos) {
+                c1 = stops[k]; c2 = stops[k + 1]; break;
+            }
+        }
+        const t = (norm - c1.pos) / (c2.pos - c1.pos + 1e-6);
+        const smoothT = t * t * (3 - 2 * t);
+        r = Math.floor(c1.r + (c2.r - c1.r) * smoothT);
+        g = Math.floor(c1.g + (c2.g - c1.g) * smoothT);
+        b = Math.floor(c1.b + (c2.b - c1.b) * smoothT);
     }
 
     return [r, g, b, a];
@@ -473,9 +579,21 @@ async function renderCanvasRasterSlice() {
 
     for (let i = 0; i < nLat; i++) {
         const rowIdx = nLat - 1 - i; // Flip latitude for canvas Y
+        const lat = lats[rowIdx];
         for (let j = 0; j < nLon; j++) {
+            const lon = lons[j];
             const val = grid[rowIdx][j];
-            const [r, g, b, a] = getVariableColormapColor(val, minVal, maxVal, currentVariable);
+            let [r, g, b, a] = getVariableColormapColor(val, minVal, maxVal, currentVariable);
+
+            // Smooth edge alpha feathering near outer domain boundaries (no hard rectangular cliffs)
+            if (a > 0) {
+                let edgeFactor = 1.0;
+                if (lat < 6.8) edgeFactor *= Math.max(0, (lat - 5.0) / 1.8);
+                if (lon < 48.0) edgeFactor *= Math.max(0, (lon - 45.0) / 3.0);
+                if (lon > 102.0) edgeFactor *= Math.max(0, (105.0 - lon) / 3.0);
+                a = Math.floor(a * edgeFactor);
+            }
+
             const pIdx = (i * nLon + j) * 4;
             imgData.data[pIdx] = r;
             imgData.data[pIdx + 1] = g;
@@ -527,11 +645,13 @@ function updateLegendUI(minVal, maxVal, depthM) {
     // Colormap Bar CSS Gradient
     const bar = document.getElementById('legend-gradient-bar');
     if (currentVariable === "tchp") {
-        bar.style.background = "linear-gradient(90deg, #281900, #b8860b, #ff4500, #ff0033)";
-    } else if (currentVariable === "d20") {
-        bar.style.background = "linear-gradient(90deg, #00ffff, #0088cc, #003366)";
+        bar.style.background = "linear-gradient(90deg, #2d1905, #b4640f, #f55514, #eb1928)";
+    } else if (currentVariable === "sss") {
+        bar.style.background = "linear-gradient(90deg, #14c3a0, #2382e1, #7d2dd7)";
+    } else if (currentVariable === "temp" || currentVariable === "sst") {
+        bar.style.background = "linear-gradient(90deg, #081c5f, #0e5fc3, #00d4ff, #18c37d, #fabe23, #e12626)";
     } else {
-        bar.style.background = "linear-gradient(90deg, #0f1982, #00f0ff, #10b981, #f59e0b, #ef4444)";
+        bar.style.background = "linear-gradient(90deg, #440154, #3b528b, #21918c, #5ec962, #fde725)";
     }
 }
 
@@ -717,18 +837,53 @@ async function queryPointSounding(lat, lon) {
 }
 
 function generatePhysicalSounding(lat, lon, basinName) {
-    const isAS = (lon < 78);
-    const sst = isAS ? (28.4 + (lon < 56 ? -3.0 : 0.3) + (lat > 20 ? 0.6 : 0)) : (29.4 + (lat > 18 ? 0.5 : -0.2));
-    const sss = isAS ? 36.2 : (32.8 - (lat > 18 ? 2.5 : 0.4));
-    const sla = isAS ? 0.08 : 0.14;
-    const ssh = 0.95 + sla;
-    const currSpeed = isAS ? (lon < 56 ? 1.1 : 0.42) : 0.38;
-    const windSpeed = 7.5 + (lat < 12 ? 3.0 : 0);
+    // Smooth sigmoid basin transition across Peninsular India / Sri Lanka (78.5°E)
+    const bobWeight = 1.0 / (1.0 + Math.exp(-(lon - 78.5) / 2.8));
+    const asWeight = 1.0 - bobWeight;
 
-    const mld = isAS ? (lon < 56 ? 55.0 : 42.0) : 32.0;
-    const d26 = isAS ? 88.0 : 105.0;
-    const tchp = isAS ? (lon < 56 ? 48.0 : 76.5) : 94.0;
-    const d20 = isAS ? (lon < 56 ? 68.0 : 115.0) : 130.0;
+    // Smooth Gaussian Cores
+    const dLatSomali = (lat - 9.5) / 4.2;
+    const dLonSomali = (lon - 52.5) / 4.8;
+    const somaliCore = Math.exp(-(dLatSomali * dLatSomali + dLonSomali * dLonSomali));
+
+    const dLatASWP = (lat - 13.0) / 4.8;
+    const dLonASWP = (lon - 67.5) / 5.2;
+    const aswpCore = Math.exp(-(dLatASWP * dLatASWP + dLonASWP * dLonASWP));
+
+    const dLatBoB = (lat - 15.0) / 5.0;
+    const dLonBoB = (lon - 88.0) / 5.5;
+    const bobCore = Math.exp(-(dLatBoB * dLatBoB + dLonBoB * dLonBoB));
+
+    const dLatHead = (lat - 21.2) / 3.0;
+    const dLonHead = (lon - 89.5) / 3.6;
+    const headPlume = Math.exp(-(dLatHead * dLatHead + dLonHead * dLonHead));
+
+    const dLatAndaman = (lat - 11.5) / 4.5;
+    const dLonAndaman = (lon - 94.0) / 4.5;
+    const andamanCore = Math.exp(-(dLatAndaman * dLatAndaman + dLonAndaman * dLonAndaman));
+
+    // Continuous Ocean Surface Fields
+    const latGradientSST = 29.5 - 0.09 * (lat - 5.0);
+    const sst = latGradientSST 
+        + 0.75 * aswpCore 
+        + 0.65 * bobCore 
+        + 0.35 * andamanCore 
+        - 3.40 * somaliCore 
+        - 0.55 * headPlume;
+
+    const sss = (36.4 * asWeight + 32.6 * bobWeight) - 2.8 * headPlume + 0.3 * aswpCore;
+    const sla = (0.05 * asWeight + 0.12 * bobWeight) + 0.18 * aswpCore - 0.24 * somaliCore + 0.16 * bobCore;
+    const ssh = 0.95 + sla;
+    const currSpeed = 0.28 + 0.95 * somaliCore + 0.22 * aswpCore;
+    const windSpeed = 6.5 + 4.2 * Math.sin((lat - 4.0) * 0.12) + 2.8 * somaliCore;
+
+    const mld = (44.0 * asWeight + 32.0 * bobWeight) + 18.0 * somaliCore - 6.0 * headPlume;
+    const d26 = (90.0 * asWeight + 105.0 * bobWeight) - 45.0 * somaliCore + 12.0 * aswpCore + 15.0 * bobCore;
+    const d20 = (116.0 * asWeight + 128.0 * bobWeight) - 58.0 * somaliCore + 14.0 * aswpCore + 16.0 * bobCore;
+    const tchp = Math.max(15, (74.0 * asWeight + 95.0 * bobWeight) - 42.0 * somaliCore + 14.0 * aswpCore + 18.0 * bobCore + (sst - 28.5) * 12.0);
+
+    const hThermocline = 135.0 + 25.0 * aswpCore - 35.0 * somaliCore + 20.0 * bobCore;
+    const tAbyssal = 3.6;
 
     const tMed = [];
     const tLow = [];
@@ -736,19 +891,18 @@ function generatePhysicalSounding(lat, lon, basinName) {
     const tClim = [];
 
     STANDARD_DEPTHS.forEach((z) => {
-        // Climatology Baseline
         const clim = 4.0 + (28.0 - 4.0) * Math.exp(-z / 140.0);
         tClim.push(Math.round(clim * 100) / 100);
 
-        // Median HO-Mamba Profile
         let t = 0;
         if (z <= mld) {
-            t = sst - (z / mld) * 0.4;
+            t = sst - (z / Math.max(1, mld)) * 0.35;
         } else {
-            t = 3.8 + (sst - 3.8) * Math.exp(-(z - mld) / 135.0);
+            const zRel = z - mld;
+            t = tAbyssal + (sst - tAbyssal) * Math.exp(-zRel / hThermocline);
         }
 
-        const uncertainty = 0.15 + (z > 50 && z < 250 ? 0.65 : 0.18); // Thermocline has highest uncertainty
+        const uncertainty = 0.15 + (z > 50 && z < 250 ? 0.65 : 0.18);
         tMed.push(Math.round(t * 100) / 100);
         tLow.push(Math.round((t - uncertainty) * 100) / 100);
         tUp.push(Math.round((t + uncertainty) * 100) / 100);
@@ -758,27 +912,27 @@ function generatePhysicalSounding(lat, lon, basinName) {
         latitude: lat,
         longitude: lon,
         basin_name: basinName,
-        sst_degC: sst,
-        sss_psu: sss,
-        sla_m: sla,
-        ssh_m: ssh,
-        current_speed_ms: currSpeed,
+        sst_degC: Math.round(sst * 100) / 100,
+        sss_psu: Math.round(sss * 100) / 100,
+        sla_m: Math.round(sla * 1000) / 1000,
+        ssh_m: Math.round(ssh * 1000) / 1000,
+        current_speed_ms: Math.round(currSpeed * 100) / 100,
         current_dir_deg: 65.4,
-        wind_speed_ms: windSpeed,
+        wind_speed_ms: Math.round(windSpeed * 10) / 10,
         wind_dir_deg: 240.0,
         depths: STANDARD_DEPTHS,
         temperature_median: tMed,
         temperature_lower_10: tLow,
         temperature_upper_90: tUp,
         climatology_baseline: tClim,
-        mld_m: mld,
-        d26_m: d26,
-        d20_m: d20,
-        tchp_kj_cm2: tchp,
+        mld_m: Math.round(mld * 10) / 10,
+        d26_m: Math.round(d26 * 10) / 10,
+        d20_m: Math.round(d20 * 10) / 10,
+        tchp_kj_cm2: Math.round(tchp * 10) / 10,
         pfz_upwelling: {
-            d20_isotherm_depth_m: d20,
+            d20_isotherm_depth_m: Math.round(d20 * 10) / 10,
             recommended_gear_depth_m: Math.round(d20 * 0.75),
-            pfz_potential_category: (d20 < 90 || lon < 58) ? "VERY HIGH UPWELLING" : "MODERATE POTENTIAL",
+            pfz_potential_category: (d20 < 90 || somaliCore > 0.4) ? "VERY HIGH UPWELLING" : "MODERATE POTENTIAL",
             incois_advisory_text: `Active cold nutrient upwelling identified at ${d20.toFixed(0)}m. Pelagic shoals (Tuna, Mackerel, Sardine) aggregated at gear depth ${Math.round(d20 * 0.75)}m.`
         },
         oil_and_plastic_risk: {
@@ -1510,16 +1664,45 @@ function handleMapHover(e) {
     tooltip.style.left = `${e.originalEvent.clientX}px`;
     tooltip.style.top = `${e.originalEvent.clientY}px`;
 
-    const isAS = (lon < 78);
-    const basin = isAS ? "Arabian Sea" : "Bay of Bengal";
-    const sst = isAS ? (28.4 + (lon < 56 ? -3.0 : 0.3)) : (29.4 + (lat > 18 ? 0.5 : 0));
-    const sss = isAS ? 36.1 : 32.6;
-    const sla = isAS ? 0.08 : 0.12;
-    const curr = isAS ? (lon < 56 ? 1.05 : 0.42) : 0.38;
-    const wind = 7.8;
+    // Smooth continuous basin transition
+    const bobWeight = 1.0 / (1.0 + Math.exp(-(lon - 78.5) / 2.8));
+    const asWeight = 1.0 - bobWeight;
+
+    const dLatSomali = (lat - 9.5) / 4.2;
+    const dLonSomali = (lon - 52.5) / 4.8;
+    const somaliCore = Math.exp(-(dLatSomali * dLatSomali + dLonSomali * dLonSomali));
+
+    const dLatASWP = (lat - 13.0) / 4.8;
+    const dLonASWP = (lon - 67.5) / 5.2;
+    const aswpCore = Math.exp(-(dLatASWP * dLatASWP + dLonASWP * dLonASWP));
+
+    const dLatBoB = (lat - 15.0) / 5.0;
+    const dLonBoB = (lon - 88.0) / 5.5;
+    const bobCore = Math.exp(-(dLatBoB * dLatBoB + dLonBoB * dLonBoB));
+
+    const dLatHead = (lat - 21.2) / 3.0;
+    const dLonHead = (lon - 89.5) / 3.6;
+    const headPlume = Math.exp(-(dLatHead * dLatHead + dLonHead * dLonHead));
+
+    const basin = (lon < 77.5) ? "Arabian Sea" : ((lon > 80.0) ? "Bay of Bengal" : "Equatorial Front");
+    const latGradientSST = 29.5 - 0.09 * (lat - 5.0);
+    const sst = latGradientSST + 0.75 * aswpCore + 0.65 * bobCore - 3.40 * somaliCore - 0.55 * headPlume;
+    const sss = (36.4 * asWeight + 32.6 * bobWeight) - 2.8 * headPlume + 0.3 * aswpCore;
+    const sla = (0.05 * asWeight + 0.12 * bobWeight) + 0.18 * aswpCore - 0.24 * somaliCore + 0.16 * bobCore;
+    const curr = 0.28 + 0.95 * somaliCore + 0.22 * aswpCore;
+    const wind = 6.5 + 4.2 * Math.sin((lat - 4.0) * 0.12) + 2.8 * somaliCore;
+
+    const mld = (44.0 * asWeight + 32.0 * bobWeight) + 18.0 * somaliCore - 6.0 * headPlume;
     const depthM = STANDARD_DEPTHS[currentDepthIndex];
-    const depthTemp = 3.8 + (sst - 3.8) * Math.exp(-depthM / 135.0);
-    const tchp = isAS ? (lon < 56 ? 45 : 78) : 92;
+    const hThermocline = 135.0 + 25.0 * aswpCore - 35.0 * somaliCore + 20.0 * bobCore;
+    const tAbyssal = 3.6;
+    let depthTemp = 0;
+    if (depthM <= mld) {
+        depthTemp = sst - (depthM / Math.max(1, mld)) * 0.35;
+    } else {
+        depthTemp = tAbyssal + (sst - tAbyssal) * Math.exp(-(depthM - mld) / hThermocline);
+    }
+    const tchp = Math.max(15, (74.0 * asWeight + 95.0 * bobWeight) - 42.0 * somaliCore + 14.0 * aswpCore + 18.0 * bobCore + (sst - 28.5) * 12.0);
 
     document.getElementById('tt-basin').innerText = basin;
     document.getElementById('tt-coords').innerText = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
@@ -1531,7 +1714,7 @@ function handleMapHover(e) {
     document.getElementById('tt-wind').innerText = `${wind.toFixed(1)} m/s`;
     document.getElementById('tt-depth-lbl').innerText = `T(${depthM}m)`;
     document.getElementById('tt-depth-temp').innerText = `${depthTemp.toFixed(1)} °C`;
-    document.getElementById('tt-tchp').innerText = `${tchp} kJ/cm²`;
+    document.getElementById('tt-tchp').innerText = `${tchp.toFixed(0)} kJ/cm²`;
 }
 
 /* ==========================================================================
