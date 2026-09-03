@@ -62,29 +62,35 @@
                 <span class="res-tag">0.25° Daily</span>
             </div>
 
-            <!-- Quick Basin Jump Shortcuts -->
+            <!-- Quick Basin Jump Shortcuts with Key Indicators -->
             <nav class="basin-shortcuts" aria-label="Basin Navigation">
-                <button class="basin-chip active" data-lat="14.0" data-lon="68.0">Arabian Sea Warm Pool</button>
-                <button class="basin-chip" data-lat="9.5" data-lon="54.0">Somali Upwelling</button>
-                <button class="basin-chip" data-lat="14.5" data-lon="87.5">Bay of Bengal Gyre</button>
-                <button class="basin-chip" data-lat="10.5" data-lon="73.5">Lakshadweep Sea</button>
-                <button class="basin-chip" data-lat="19.5" data-lon="89.0">Head BoB Plume</button>
+                <button class="basin-chip active" data-lat="14.0" data-lon="67.5" data-zoom="6" title="Press [1] to jump"><span class="key-badge">1</span> Arabian Sea Warm Pool</button>
+                <button class="basin-chip" data-lat="9.5" data-lon="53.0" data-zoom="6" title="Press [2] to jump"><span class="key-badge">2</span> Somali Upwelling</button>
+                <button class="basin-chip" data-lat="14.5" data-lon="87.5" data-zoom="6" title="Press [3] to jump"><span class="key-badge">3</span> Bay of Bengal Gyre</button>
+                <button class="basin-chip" data-lat="10.5" data-lon="73.0" data-zoom="6" title="Press [4] to jump"><span class="key-badge">4</span> Lakshadweep Sea</button>
+                <button class="basin-chip" data-lat="20.5" data-lon="89.5" data-zoom="6" title="Press [5] to jump"><span class="key-badge">5</span> Head BoB Plume</button>
+                <button class="basin-chip" data-lat="11.5" data-lon="93.5" data-zoom="6" title="Press [6] to jump"><span class="key-badge">6</span> Andaman Sea</button>
+                <button class="basin-chip" data-lat="5.5" data-lon="78.0" data-zoom="6" title="Press [7] to jump"><span class="key-badge">7</span> Wyrtki Jet</button>
             </nav>
         </div>
 
         <div class="hud-right">
-            <button id="btn-toggle-3d" class="hud-action-pill" title="Launch 3D Volumetric Studio">
+            <button id="btn-toggle-keys-modal" class="hud-action-pill" title="View Keyboard Navigation Keys (Press ? or K)">
+                <span class="pill-icon">⌨️</span>
+                <span>Nav Keys</span>
+            </button>
+            <button id="btn-toggle-3d" class="hud-action-pill" title="Launch 3D Volumetric Studio (Press 3)">
                 <span class="pill-icon">🧊</span>
                 <span>3D Studio</span>
             </button>
-            <button id="btn-deploy-modal-trigger" class="hud-action-pill" title="Deploy Virtual Argo Float">
+            <button id="btn-deploy-modal-trigger" class="hud-action-pill" title="Deploy Virtual Argo Float (Press F)">
                 <span class="pill-icon">📍</span>
                 <span>Deploy Float</span>
             </button>
-            <button id="btn-reset-view" class="hud-icon-btn small" title="Reset Map View">
+            <button id="btn-reset-view" class="hud-icon-btn small" title="Reset Map View (Press R or Home)">
                 <span class="btn-icon">⟲</span>
             </button>
-            <button id="btn-toggle-drawer" class="hud-icon-btn primary active" title="Toggle Intelligence Drawer" aria-label="Toggle Analytics">
+            <button id="btn-toggle-drawer" class="hud-icon-btn primary active" title="Toggle Intelligence Drawer (Press I)" aria-label="Toggle Analytics">
                 <span class="btn-icon">📊</span>
                 <span class="btn-label">Intelligence</span>
             </button>
@@ -715,6 +721,79 @@
                 <button id="btn-confirm-deploy" class="modal-btn primary">
                     <span>🚀 Inject & Assimilate Float</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating On-Screen Compass & Directional D-Pad Controller -->
+    <div id="nav-dpad-controller" class="nav-dpad-hud" aria-label="Navigation D-Pad">
+        <div class="dpad-wheel">
+            <button id="btn-nav-north" class="dpad-btn north" title="Pan North (↑ or W)">▲</button>
+            <button id="btn-nav-west" class="dpad-btn west" title="Pan West (← or A)">◀</button>
+            <button id="btn-nav-center" class="dpad-btn center" title="Reset North / Center (R or Home)">🧭</button>
+            <button id="btn-nav-east" class="dpad-btn east" title="Pan East (→ or D)">▶</button>
+            <button id="btn-nav-south" class="dpad-btn south" title="Pan South (↓ or S)">▼</button>
+        </div>
+        <div class="dpad-zoom-row">
+            <button id="btn-nav-zoom-in" class="dpad-zoom-btn" title="Zoom In (+)">+</button>
+            <button id="btn-nav-zoom-out" class="dpad-zoom-btn" title="Zoom Out (-)">−</button>
+        </div>
+        <!-- Quick Station / Coordinate Go-To Selector -->
+        <div class="dpad-station-selector">
+            <select id="quick-station-select" class="dpad-select" title="Jump to Ocean Station / Buoy">
+                <option value="" disabled selected>🎯 Ocean Stations & Buoys</option>
+                <option value="15.00,70.00,6">Central Arabian Sea (15°N, 70°E)</option>
+                <option value="15.00,69.00,7">INCOIS OMNI Buoy AD02 (15°N, 69°E)</option>
+                <option value="17.50,89.00,7">INCOIS OMNI Buoy BD09 (17.5°N, 89°E)</option>
+                <option value="9.50,53.00,6">Somali Upwelling (9.5°N, 53°E)</option>
+                <option value="14.50,87.50,6">Bay of Bengal Gyre (14.5°N, 87.5°E)</option>
+                <option value="10.50,73.00,6">Lakshadweep Front (10.5°N, 73°E)</option>
+                <option value="20.50,89.50,6">Head BoB Plume (20.5°N, 89.5°E)</option>
+                <option value="11.50,93.50,6">Andaman Sea Basin (11.5°N, 93.5°E)</option>
+                <option value="5.50,78.00,6">Equatorial Wyrtki Jet (5.5°N, 78°E)</option>
+                <option value="24.50,59.00,6">Gulf of Oman Front (24.5°N, 59°E)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Keyboard Navigation Shortcuts Modal -->
+    <div id="keyboard-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card keys-modal-card">
+            <div class="modal-head">
+                <div class="modal-title-group">
+                    <span class="modal-icon">⌨️</span>
+                    <h4>Keyboard Navigation Keys & Shortcuts</h4>
+                </div>
+                <button id="btn-close-keys-modal" class="modal-close-btn">✕</button>
+            </div>
+            <div class="modal-body keys-grid-body">
+                <div class="key-group">
+                    <h5>Map View Navigation</h5>
+                    <div class="key-row"><div class="key-combo"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></div><span>Pan map North, South, West, East</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>+</kbd> / <kbd>-</kbd></div><span>Zoom in / Zoom out</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>R</kbd> / <kbd>Home</kbd></div><span>Reset view to North Indian Ocean basin</span></div>
+                </div>
+                <div class="key-group">
+                    <h5>Quick Basin Jump Hotkeys</h5>
+                    <div class="key-row"><div class="key-combo"><kbd>1</kbd> to <kbd>7</kbd></div><span>Jump to key basins (Arabian Sea, Somali, BoB, etc.)</span></div>
+                </div>
+                <div class="key-group">
+                    <h5>Layer & Depth Controls</h5>
+                    <div class="key-row"><div class="key-combo"><kbd>PgUp</kbd> / <kbd>PgDn</kbd> (or <kbd>U</kbd>/<kbd>D</kbd>)</div><span>Step depth shallower / deeper (0m–1000m)</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>L</kbd></div><span>Toggle Oceanographic Layers Drawer</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>I</kbd></div><span>Toggle Oceanic Intelligence Drawer</span></div>
+                </div>
+                <div class="key-group">
+                    <h5>Simulation & Tools</h5>
+                    <div class="key-row"><div class="key-combo"><kbd>Space</kbd></div><span>Play / Pause 10-day synoptic simulation</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>[</kbd> / <kbd>]</kbd></div><span>Step previous day / next day</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>3</kbd></div><span>Toggle 3D Volumetric Studio</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>F</kbd></div><span>Open Virtual Argo Float Deploy modal</span></div>
+                    <div class="key-row"><div class="key-combo"><kbd>Esc</kbd></div><span>Close active modals or studio</span></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-dismiss-keys-modal" class="modal-btn primary">Got it</button>
             </div>
         </div>
     </div>

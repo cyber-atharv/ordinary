@@ -156,6 +156,9 @@ function initMap() {
         const lat = Math.round(e.latlng.lat * 100) / 100;
         const lon = Math.round(e.latlng.lng * 100) / 100;
         if (lat >= 5.0 && lat <= 30.0 && lon >= 45.0 && lon <= 105.0) {
+            if (isLandCoordinate(lat, lon)) {
+                return;
+            }
             queryPointSounding(lat, lon);
         }
     });
@@ -201,12 +204,95 @@ function renderAllMapLayers() {
     renderCycloneTrack(activeCycloneKey);
 }
 
+// Comprehensive high-precision coastal polygons for North Indian Ocean
+const LAND_POLYGONS = [
+    // 1. Indian Subcontinent & Northern Eurasian landmass
+    [
+        [24.8, 61.5], [25.3, 63.5], [25.1, 64.5], [25.3, 66.5],
+        [24.8, 67.0], [24.0, 67.8], [23.7, 68.2], [23.2, 68.5],
+        [22.8, 69.1], [22.8, 70.3], [22.5, 69.5], [22.2, 68.9],
+        [21.5, 69.6], [20.8, 70.4], [20.7, 71.0], [21.0, 72.1],
+        [22.2, 72.6], [21.7, 72.7], [21.1, 72.7], [20.4, 72.8],
+        [19.0, 72.8], [18.0, 73.0], [17.0, 73.3], [16.0, 73.5],
+        [15.4, 73.8], [14.5, 74.3], [13.3, 74.7], [12.9, 74.8],
+        [12.0, 75.2], [11.2, 75.8], [10.0, 76.2], [9.5, 76.3],
+        [8.8, 76.6],  [8.5, 76.9],  [8.08, 77.55],
+        [8.8, 78.1],  [9.28, 79.3], [9.8, 79.0],  [10.3, 79.85],
+        [10.8, 79.85], [11.9, 79.8], [13.08, 80.27], [14.0, 80.1],
+        [15.5, 80.2], [16.0, 80.8], [16.9, 82.2], [17.7, 83.3],
+        [18.5, 84.3], [19.3, 85.0], [19.8, 85.8], [20.3, 86.7],
+        [21.5, 87.0], [21.6, 88.0], [21.7, 89.0], [22.0, 90.5],
+        [22.3, 91.8], [21.4, 92.0], [20.5, 92.4],
+        [20.5, 93.0], [32.0, 93.0], [32.0, 61.5], [24.8, 61.5]
+    ],
+    // 2. Sri Lanka
+    [
+        [9.8, 80.2], [9.3, 80.0], [8.6, 79.8], [8.0, 79.7],
+        [7.0, 79.8], [6.0, 80.2], [5.9, 80.5], [6.2, 81.3],
+        [7.0, 81.9], [7.7, 81.7], [8.6, 81.2], [9.3, 80.6],
+        [9.8, 80.2]
+    ],
+    // 3. Arabian Peninsula (Saudi Arabia, Yemen, Oman, UAE)
+    [
+        [12.6, 43.4], [12.8, 45.0], [13.5, 46.5], [14.0, 47.0],
+        [14.3, 48.5], [15.0, 50.5], [16.0, 52.0], [16.6, 53.0],
+        [17.0, 54.1], [18.0, 56.0], [19.6, 57.7], [20.5, 58.8],
+        [22.5, 59.8], [23.6, 58.6], [24.5, 56.8], [26.2, 56.4],
+        [32.0, 56.4], [32.0, 43.0], [12.0, 43.0], [12.6, 43.4]
+    ],
+    // 4. Iran & Northern Gulf of Oman Coast
+    [
+        [24.8, 61.5], [25.4, 60.5], [25.4, 59.0], [27.1, 56.5],
+        [32.0, 56.5], [32.0, 61.5], [24.8, 61.5]
+    ],
+    // 5. Horn of Africa / East Africa (Somalia, Djibouti, Ethiopia)
+    [
+        [12.0, 43.0], [11.5, 43.1], [10.5, 45.0], [11.0, 47.0],
+        [11.5, 50.0], [11.8, 51.3], [10.4, 51.3], [7.9, 49.8],
+        [5.3, 48.5],  [4.0, 47.0],  [4.0, 43.0],  [12.0, 43.0]
+    ],
+    // 6. Indochina (Myanmar, Thailand, Malaysia)
+    [
+        [20.5, 92.4], [20.0, 92.8], [18.5, 93.8], [16.0, 94.2],
+        [15.8, 95.0], [16.0, 96.0], [16.5, 97.0], [14.0, 98.0],
+        [12.0, 98.5], [9.8, 98.5],  [8.0, 98.3],  [6.0, 99.8],
+        [5.0, 100.3], [4.0, 100.5], [4.0, 106.0], [32.0, 106.0],
+        [32.0, 92.4], [20.5, 92.4]
+    ],
+    // 7. Sumatra
+    [
+        [5.6, 95.3], [4.5, 96.0], [3.5, 97.0], [2.0, 98.0],
+        [2.0, 95.0], [5.6, 95.3]
+    ]
+];
+
+function isPointInPoly(lat, lon, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i][1], yi = poly[i][0];
+        const xj = poly[j][1], yj = poly[j][0];
+        const intersect = ((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi + 1e-12) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function isLandCoordinate(lat, lon) {
+    if (lat >= 25.5) return true; // Upper northern landmass
+    for (let i = 0; i < LAND_POLYGONS.length; i++) {
+        if (isPointInPoly(lat, lon, LAND_POLYGONS[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /**
- * Fast analytical physics model for North Indian Ocean basin when backend is offline
+ * Fast analytical physics model for North Indian Ocean basin with high-resolution coastline adherence
  */
 function computePhysicalGrid(variable, depthM, dayOffset) {
     const minLat = 5.0, maxLat = 30.0, minLon = 45.0, maxLon = 105.0;
-    const nLat = 51, nLon = 121;
+    const nLat = 151, nLon = 301;
     const lats = [];
     const lons = [];
     for (let i = 0; i < nLat; i++) lats.push(minLat + (maxLat - minLat) * (i / (nLat - 1)));
@@ -221,7 +307,7 @@ function computePhysicalGrid(variable, depthM, dayOffset) {
         for (let j = 0; j < nLon; j++) {
             const lon = lons[j];
 
-            // Real Land Mask Check
+            // Strict Land-Sea Mask Check
             if (isLandCoordinate(lat, lon)) {
                 row.push(null);
                 continue;
@@ -287,31 +373,6 @@ function computePhysicalGrid(variable, depthM, dayOffset) {
     }
 
     return { lats, lons, grid, minVal, maxVal };
-}
-
-function isLandCoordinate(lat, lon) {
-    // Peninsular India polygon simplification
-    if (lat >= 8.0 && lat <= 24.0 && lon >= 72.0 && lon <= 88.0) {
-        if (lat < 21.0) {
-            const westCoast = 72.0 + (lat - 8.0) * 0.28;
-            const eastCoast = 80.0 + (lat - 8.0) * 0.55;
-            if (lon >= westCoast && lon <= eastCoast) return true;
-        } else {
-            if (lon >= 70.0 && lon <= 89.0) return true;
-        }
-    }
-    // Northern landmass (>24N)
-    if (lat >= 24.5) return true;
-    // Arabian Peninsula (West of 60E and North of 14N)
-    if (lon <= 59.5 && lat >= 14.5) return true;
-    // Horn of Africa (West of 51E and South of 12N)
-    if (lon <= 51.5 && lat <= 12.0) return true;
-    // Myanmar / Thailand (East of 98E and North of 10N)
-    if (lon >= 98.0 && lat >= 10.0) return true;
-    // Sri Lanka
-    if (lat >= 6.0 && lat <= 9.8 && lon >= 79.5 && lon <= 82.0) return true;
-
-    return false;
 }
 
 /**
@@ -1254,6 +1315,142 @@ function initEventListeners() {
         if (isPlaying) {
             clearInterval(playInterval);
             playInterval = setInterval(advanceTimelineStep, 1500 / playSpeed);
+        }
+    });
+
+    // D-Pad Directional Navigation Controls
+    document.getElementById('btn-nav-north').addEventListener('click', () => {
+        const center = map.getCenter();
+        map.panTo([Math.min(28.0, center.lat + 2.0), center.lng], { animate: true, duration: 0.4 });
+    });
+    document.getElementById('btn-nav-south').addEventListener('click', () => {
+        const center = map.getCenter();
+        map.panTo([Math.max(6.0, center.lat - 2.0), center.lng], { animate: true, duration: 0.4 });
+    });
+    document.getElementById('btn-nav-west').addEventListener('click', () => {
+        const center = map.getCenter();
+        map.panTo([center.lat, Math.max(48.0, center.lng - 3.0)], { animate: true, duration: 0.4 });
+    });
+    document.getElementById('btn-nav-east').addEventListener('click', () => {
+        const center = map.getCenter();
+        map.panTo([center.lat, Math.min(102.0, center.lng + 3.0)], { animate: true, duration: 0.4 });
+    });
+    document.getElementById('btn-nav-center').addEventListener('click', () => {
+        map.flyTo([15.5, 75.0], 5, { duration: 1.0 });
+    });
+    document.getElementById('btn-nav-zoom-in').addEventListener('click', () => {
+        map.zoomIn();
+    });
+    document.getElementById('btn-nav-zoom-out').addEventListener('click', () => {
+        map.zoomOut();
+    });
+
+    // Quick Station / Buoy Go-To Selector
+    document.getElementById('quick-station-select').addEventListener('change', (e) => {
+        const parts = e.target.value.split(',');
+        if (parts.length >= 2) {
+            const lat = parseFloat(parts[0]);
+            const lon = parseFloat(parts[1]);
+            const zoom = parts[2] ? parseInt(parts[2]) : 6;
+            map.flyTo([lat, lon], zoom, { duration: 1.2 });
+            queryPointSounding(lat, lon);
+        }
+    });
+
+    // Keyboard Shortcuts Modal Controls
+    const keysModal = document.getElementById('keyboard-modal');
+    document.getElementById('btn-toggle-keys-modal').addEventListener('click', () => {
+        keysModal.style.display = 'flex';
+    });
+    document.getElementById('btn-close-keys-modal').addEventListener('click', () => {
+        keysModal.style.display = 'none';
+    });
+    document.getElementById('btn-dismiss-keys-modal').addEventListener('click', () => {
+        keysModal.style.display = 'none';
+    });
+
+    // Global Keyboard Navigation Hotkeys Handler
+    document.addEventListener('keydown', (e) => {
+        if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+        const key = e.key;
+
+        // Map Pan with Arrow Keys
+        if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+            const c = map.getCenter();
+            map.panTo([Math.min(28.0, c.lat + 1.5), c.lng], { animate: true, duration: 0.25 });
+        } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+            const c = map.getCenter();
+            map.panTo([Math.max(6.0, c.lat - 1.5), c.lng], { animate: true, duration: 0.25 });
+        } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+            const c = map.getCenter();
+            map.panTo([c.lat, Math.max(48.0, c.lng - 2.0)], { animate: true, duration: 0.25 });
+        } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+            const c = map.getCenter();
+            map.panTo([c.lat, Math.min(102.0, c.lng + 2.0)], { animate: true, duration: 0.25 });
+        }
+        // Zoom Controls
+        else if (key === '+' || key === '=') {
+            map.zoomIn();
+        } else if (key === '-' || key === '_') {
+            map.zoomOut();
+        }
+        // Reset Map to Home Basin View
+        else if (key === 'Home' || key === 'r' || key === 'R') {
+            map.flyTo([15.5, 75.0], 5, { duration: 1.0 });
+        }
+        // Basin Jump Hotkeys [1] - [7]
+        else if (key >= '1' && key <= '7') {
+            const chips = document.querySelectorAll('.basin-chip');
+            const idx = parseInt(key) - 1;
+            if (chips[idx]) chips[idx].click();
+        }
+        // Depth Steps (PgUp / PgDn / u / d)
+        else if (key === 'PageUp' || key === 'u' || key === 'U') {
+            if (currentDepthIndex > 0) {
+                currentDepthIndex--;
+                depthSlider.value = currentDepthIndex;
+                updateDepthUI();
+                renderCanvasRasterSlice();
+            }
+        } else if (key === 'PageDown' || key === 'd' || key === 'D') {
+            if (currentDepthIndex < STANDARD_DEPTHS.length - 1) {
+                currentDepthIndex++;
+                depthSlider.value = currentDepthIndex;
+                updateDepthUI();
+                renderCanvasRasterSlice();
+            }
+        }
+        // Timeline Playback (Spacebar, [, ])
+        else if (key === ' ') {
+            e.preventDefault();
+            toggleTimelinePlay();
+        } else if (key === '[') {
+            document.getElementById('btn-timeline-prev').click();
+        } else if (key === ']') {
+            document.getElementById('btn-timeline-next').click();
+        }
+        // Drawer Toggles (L, I)
+        else if (key === 'l' || key === 'L') {
+            document.getElementById('btn-toggle-layers').click();
+        } else if (key === 'i' || key === 'I') {
+            document.getElementById('btn-toggle-drawer').click();
+        }
+        // 3D Studio & Float Modal (3, F)
+        else if (key === '3') {
+            document.getElementById('btn-toggle-3d').click();
+        } else if (key === 'f' || key === 'F') {
+            document.getElementById('btn-deploy-modal-trigger').click();
+        }
+        // Keys Help Modal (? or K)
+        else if (key === '?' || key === 'k' || key === 'K') {
+            keysModal.style.display = (keysModal.style.display === 'flex') ? 'none' : 'flex';
+        }
+        // Escape to close modals
+        else if (key === 'Escape') {
+            floatModal.style.display = 'none';
+            keysModal.style.display = 'none';
+            document.getElementById('volume-view-wrapper').style.display = 'none';
         }
     });
 }

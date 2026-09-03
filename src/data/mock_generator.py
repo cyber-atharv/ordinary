@@ -42,25 +42,94 @@ def generate_north_indian_ocean_dataset(
     
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
-    # 1. Land-Sea Mask: Indian Subcontinent & Arabian Peninsula
-    # Approximate bounding polygon for land mass
+    # 1. High-Precision Land-Sea Mask for North Indian Ocean
+    LAND_POLYGONS = [
+        # Indian Subcontinent & Northern Eurasian landmass
+        [
+            [24.8, 61.5], [25.3, 63.5], [25.1, 64.5], [25.3, 66.5],
+            [24.8, 67.0], [24.0, 67.8], [23.7, 68.2], [23.2, 68.5],
+            [22.8, 69.1], [22.8, 70.3], [22.5, 69.5], [22.2, 68.9],
+            [21.5, 69.6], [20.8, 70.4], [20.7, 71.0], [21.0, 72.1],
+            [22.2, 72.6], [21.7, 72.7], [21.1, 72.7], [20.4, 72.8],
+            [19.0, 72.8], [18.0, 73.0], [17.0, 73.3], [16.0, 73.5],
+            [15.4, 73.8], [14.5, 74.3], [13.3, 74.7], [12.9, 74.8],
+            [12.0, 75.2], [11.2, 75.8], [10.0, 76.2], [9.5, 76.3],
+            [8.8, 76.6],  [8.5, 76.9],  [8.08, 77.55],
+            [8.8, 78.1],  [9.28, 79.3], [9.8, 79.0],  [10.3, 79.85],
+            [10.8, 79.85], [11.9, 79.8], [13.08, 80.27], [14.0, 80.1],
+            [15.5, 80.2], [16.0, 80.8], [16.9, 82.2], [17.7, 83.3],
+            [18.5, 84.3], [19.3, 85.0], [19.8, 85.8], [20.3, 86.7],
+            [21.5, 87.0], [21.6, 88.0], [21.7, 89.0], [22.0, 90.5],
+            [22.3, 91.8], [21.4, 92.0], [20.5, 92.4],
+            [20.5, 93.0], [32.0, 93.0], [32.0, 61.5], [24.8, 61.5]
+        ],
+        # Sri Lanka
+        [
+            [9.8, 80.2], [9.3, 80.0], [8.6, 79.8], [8.0, 79.7],
+            [7.0, 79.8], [6.0, 80.2], [5.9, 80.5], [6.2, 81.3],
+            [7.0, 81.9], [7.7, 81.7], [8.6, 81.2], [9.3, 80.6],
+            [9.8, 80.2]
+        ],
+        # Arabian Peninsula
+        [
+            [12.6, 43.4], [12.8, 45.0], [13.5, 46.5], [14.0, 47.0],
+            [14.3, 48.5], [15.0, 50.5], [16.0, 52.0], [16.6, 53.0],
+            [17.0, 54.1], [18.0, 56.0], [19.6, 57.7], [20.5, 58.8],
+            [22.5, 59.8], [23.6, 58.6], [24.5, 56.8], [26.2, 56.4],
+            [32.0, 56.4], [32.0, 43.0], [12.0, 43.0], [12.6, 43.4]
+        ],
+        # Iran Coast
+        [
+            [24.8, 61.5], [25.4, 60.5], [25.4, 59.0], [27.1, 56.5],
+            [32.0, 56.5], [32.0, 61.5], [24.8, 61.5]
+        ],
+        # Horn of Africa
+        [
+            [12.0, 43.0], [11.5, 43.1], [10.5, 45.0], [11.0, 47.0],
+            [11.5, 50.0], [11.8, 51.3], [10.4, 51.3], [7.9, 49.8],
+            [5.3, 48.5],  [4.0, 47.0],  [4.0, 43.0],  [12.0, 43.0]
+        ],
+        # Indochina (Myanmar, Thailand, Malaysia)
+        [
+            [20.5, 92.4], [20.0, 92.8], [18.5, 93.8], [16.0, 94.2],
+            [15.8, 95.0], [16.0, 96.0], [16.5, 97.0], [14.0, 98.0],
+            [12.0, 98.5], [9.8, 98.5],  [8.0, 98.3],  [6.0, 99.8],
+            [5.0, 100.3], [4.0, 100.5], [4.0, 106.0], [32.0, 106.0],
+            [32.0, 92.4], [20.5, 92.4]
+        ],
+        # Sumatra
+        [
+            [5.6, 95.3], [4.5, 96.0], [3.5, 97.0], [2.0, 98.0],
+            [2.0, 95.0], [5.6, 95.3]
+        ]
+    ]
+
+    def point_in_polygon(lat_val, lon_val, poly):
+        inside = False
+        n = len(poly)
+        p1y, p1x = poly[0]
+        for idx in range(n + 1):
+            p2y, p2x = poly[idx % n]
+            if lat_val > min(p1y, p2y):
+                if lat_val <= max(p1y, p2y):
+                    if lon_val <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (lat_val - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or lon_val <= xinters:
+                            inside = not inside
+            p1y, p1x = p2y, p2x
+        return inside
+
     is_land = np.zeros((num_lat, num_lon), dtype=bool)
-    # India triangle approx: lat > 8 & lon > 68 & lon < 88 & (lat > 8 + 0.9 * (lon-68) or lat > 22)
     for i, lat in enumerate(lats):
         for j, lon in enumerate(lons):
-            # North land mass (>24°N except Arabian sea up to 25°)
-            if lat > 24.5 and 55.0 < lon < 95.0:
+            if lat >= 25.5:
                 is_land[i, j] = True
-            # Indian subcontinent peninsular triangle
-            elif 8.0 <= lat <= 24.5 and 72.0 <= lon <= 86.0:
-                if lat > (8.0 + 1.2 * abs(lon - 79.0)):
-                    is_land[i, j] = True
-            # Arabian peninsula
-            elif 13.0 <= lat and lon <= 58.0:
-                is_land[i, j] = True
-            # Myanmar/SE Asia coast
-            elif 10.0 <= lat and lon >= 98.0:
-                is_land[i, j] = True
+            else:
+                for poly in LAND_POLYGONS:
+                    if point_in_polygon(lat, lon, poly):
+                        is_land[i, j] = True
+                        break
 
     t_clim = compute_standard_climatology_profile(depths)
     
