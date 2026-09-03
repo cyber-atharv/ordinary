@@ -178,6 +178,15 @@ function initMap() {
 
 async function checkBackendHealth() {
     const statusBadge = document.getElementById('api-status-badge');
+    
+    // When hosted on HTTPS (e.g. GitHub Pages), avoid mixed-content HTTP localhost fetch
+    if (window.location.protocol === 'https:' && API_BASE.startsWith('http://localhost')) {
+        isBackendOnline = false;
+        statusBadge.innerText = "STANDALONE DIGITAL TWIN";
+        statusBadge.classList.add('offline');
+        return;
+    }
+
     try {
         const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(1800) });
         if (res.ok) {
