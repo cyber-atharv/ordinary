@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OceanEmbed-X — 3D Subsurface Ocean Digital Twin (INCOIS SIH26066)</title>
+    <title>OceanEmbed-X | North Indian Ocean 3D Digital Twin</title>
     
-    <!-- Google Fonts: Outfit & JetBrains Mono -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -17,189 +17,450 @@
     
     <link rel="stylesheet" href="src/style.css">
 </head>
-<body>
-    <!-- Top Navigation Header -->
-    <header class="app-header">
-        <div class="logo-group">
-            <div class="ocean-icon">🌊</div>
-            <div>
-                <div class="title-row">
-                    <h1>OceanEmbed-X</h1>
-                    <span class="badge sih">INCOIS · MoES SIH26066</span>
-                    <span class="badge sota">OceanMamba SSM</span>
+<body class="zoom-earth-theme">
+
+    <!-- Fullscreen Map Viewport -->
+    <div id="map-viewport">
+        <div id="map-container"></div>
+    </div>
+
+    <!-- 3D Volumetric Studio Wrapper -->
+    <div id="volume-view-wrapper" style="display: none;">
+        <div class="volume-header-bar">
+            <div class="volume-title">
+                <h3>3D Volumetric Thermocline Studio</h3>
+                <span>OceanMamba SS2D Latent Reconstructor</span>
+            </div>
+            <button id="btn-close-3d" class="glass-btn-icon" title="Return to 2D Map">✕</button>
+        </div>
+        <div id="volume-3d-plot"></div>
+    </div>
+
+    <!-- Top Floating HUD Bar -->
+    <header class="top-hud-bar">
+        <div class="hud-left-group">
+            <button id="btn-toggle-layers" class="glass-circle-btn" title="Toggle Layer Drawer">
+                <span class="btn-icon">☰</span>
+            </button>
+            <div class="brand-pill">
+                <div class="pulse-indicator live"></div>
+                <div class="brand-text">
+                    <span class="brand-title">OceanEmbed-X</span>
+                    <span class="brand-sub">INCOIS · MoES SIH26066</span>
                 </div>
-                <p class="subtitle">Satellite Embedding-Based 3D Subsurface Ocean Digital Twin</p>
             </div>
         </div>
-        
-        <div class="header-stats">
-            <div class="stat-pill">
-                <span class="dot live"></span>
-                <span class="label">Region:</span>
-                <span class="val">North Indian Ocean (5°N–30°N, 45°E–105°E)</span>
+
+        <div class="hud-center-group">
+            <div class="telemetry-pill">
+                <span class="pill-dot"></span>
+                <span id="current-basin-label" class="basin-name">Central Arabian Sea</span>
+                <span class="pill-separator">|</span>
+                <span id="current-coord-label" class="coord-val">15.00°N, 70.00°E</span>
             </div>
-            <div class="stat-pill">
-                <span class="label">Grid:</span>
-                <span class="val">0.25° Daily (24,341 cells)</span>
+
+            <!-- Quick Basin Jump Shortcuts -->
+            <div class="basin-shortcuts">
+                <button class="basin-chip active" data-lat="12.5" data-lon="68.0">Arabian Sea Warm Pool</button>
+                <button class="basin-chip" data-lat="10.0" data-lon="53.0">Somali Upwelling</button>
+                <button class="basin-chip" data-lat="15.0" data-lon="88.0">Bay of Bengal Gyre</button>
+                <button class="basin-chip" data-lat="10.5" data-lon="73.0">Lakshadweep Front</button>
+                <button class="basin-chip" data-lat="19.5" data-lon="89.0">Head BoB</button>
             </div>
-            <div class="stat-pill">
-                <span class="label">Depths:</span>
-                <span class="val">15 Standard Levels (0–1000m)</span>
-            </div>
-            <button id="btn-deploy-mode" class="action-btn">
-                <span>📍 Deploy Virtual Argo Float</span>
+        </div>
+
+        <div class="hud-right-group">
+            <button id="btn-toggle-drawer" class="glass-pill-btn active" title="Toggle Intelligence Panel">
+                <span>Analytics Panel</span>
+                <span class="drawer-arrow">❯</span>
             </button>
         </div>
     </header>
 
-    <!-- Main Workspace Container -->
-    <main class="dashboard-grid">
-        <!-- Left Section: 2D GIS & 3D Volumetric Studio -->
-        <section class="card map-section">
-            <div class="card-header">
-                <div class="view-switch-tabs">
-                    <button class="view-btn active" id="btn-view-2d">🗺️ 2D Synoptic Map</button>
-                    <button class="view-btn" id="btn-view-3d">🧊 3D Volumetric Studio</button>
-                </div>
+    <!-- Left Floating Layer Selector Drawer -->
+    <aside id="left-layer-drawer" class="left-hud-panel open">
+        <div class="drawer-header">
+            <h3>Ocean Layers</h3>
+            <span class="badge-dim">0.25° Resolution</span>
+        </div>
 
-                <div class="layer-controls-group">
-                    <div class="control-item">
-                        <label for="var-select">Variable Layer:</label>
-                        <select id="var-select" class="dropdown-select">
-                            <option value="temp">3D Subsurface Temperature (T_z)</option>
-                            <option value="sst">Sea Surface Temp (SST, OSTIA)</option>
-                            <option value="sla">Sea Level Anomaly (SLA, DUACS)</option>
-                            <option value="wind">Surface Wind Speed (CCMP/ASCAT)</option>
-                            <option value="tchp">Tropical Cyclone Heat Potential (TCHP)</option>
-                            <option value="d20">D20 Thermocline Depth (PFZ)</option>
-                        </select>
-                    </div>
-
-                    <div class="control-item" id="depth-selector-container">
-                        <label for="depth-slider">Depth Level: <strong id="depth-val-display">200 m</strong></label>
-                        <input type="range" id="depth-slider" min="0" max="14" value="10" step="1">
-                    </div>
-
-                    <div class="control-item">
-                        <label for="basemap-select">Basemap:</label>
-                        <select id="basemap-select" class="dropdown-select">
-                            <option value="satellite">Satellite Imagery</option>
-                            <option value="dark">Dark Ocean</option>
-                            <option value="ocean">GEBCO Bathymetry</option>
-                            <option value="osm">OpenStreetMap</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2D Leaflet Map Container -->
-            <div id="map-container"></div>
-
-            <!-- Map Legend & Coordinate Tracker Overlay -->
-            <div class="map-overlay-bottom">
-                <div class="coord-display">
-                    <span>📍 Cursor: <strong id="cursor-coords">15.00°N, 70.00°E (Arabian Sea)</strong></span>
-                    <span class="badge active-badge" id="data-status-badge">Live INCOIS Stream</span>
-                </div>
-                
-                <div class="colormap-legend" id="map-legend">
-                    <div class="legend-labels">
-                        <span id="legend-min">4.0°C</span>
-                        <span id="legend-title">Reconstructed Ocean Temperature (°C)</span>
-                        <span id="legend-max">31.0°C</span>
-                    </div>
-                    <div class="legend-bar-gradient"></div>
-                </div>
-            </div>
-
-            <!-- 3D Plotly Volumetric Container (Initially Hidden) -->
-            <div id="volume-view-wrapper" style="display: none;">
-                <div id="volume-3d-plot"></div>
-                <div class="volume-caption">
-                    <span>🧊 3D Thermocline Isosurface & Volumetric Mesh (Generated via OceanMamba & Sturm-Liouville Modal Synthesis)</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- Right Section: Multi-Tab Intelligence Panel -->
-        <aside class="sidebar-panel">
-            <!-- Sidebar Navigation Tabs -->
-            <nav class="tabs-header">
-                <button class="tab-btn active" data-tab="profile-tab">📈 Profile T(z)</button>
-                <button class="tab-btn" data-tab="embedding-tab">🧠 Latent Embedding</button>
-                <button class="tab-btn" data-tab="cyclone-tab">🌀 Cyclone TCHP</button>
-                <button class="tab-btn" data-tab="eco-tab">🐟 PFZ & Pollution</button>
-                <button class="tab-btn" data-tab="bench-tab">📊 15-Depth Scorecard</button>
-            </nav>
-
-            <!-- TAB 1: Vertical Profile & Thermocline Dynamics -->
-            <div class="tab-content active" id="profile-tab">
-                <div class="metric-cards-row">
-                    <div class="mini-card">
-                        <span class="mini-title">Mixed Layer Depth (MLD)</span>
-                        <span class="mini-val" id="mld-val">45.0 m</span>
-                        <span class="mini-sub">ΔT = 0.5°C Criterion</span>
-                    </div>
-                    <div class="mini-card">
-                        <span class="mini-title">26°C Isotherm (D26)</span>
-                        <span class="mini-val" id="d26-val">98.5 m</span>
-                        <span class="mini-sub">Cyclone Warm Pool</span>
-                    </div>
-                    <div class="mini-card highlight">
-                        <span class="mini-title">Cyclone Heat (TCHP)</span>
-                        <span class="mini-val text-accent" id="tchp-val">84.2 kJ/cm²</span>
-                        <span class="mini-sub">Thermodynamic Fuel</span>
-                    </div>
-                </div>
-
-                <div id="profile-plot-container"></div>
-
-                <div class="info-alert">
-                    <div class="alert-icon">⚡</div>
-                    <div>
-                        <strong>Physical Constraint Guarantee:</strong> Reconstructed via <strong>Analytical Sturm-Liouville Baroclinic Modes</strong> with 90% uncertainty envelope. Strictly zero density inversions ($N^2 \ge 0$).
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 2: Latent Satellite Embedding Studio -->
-            <div class="tab-content" id="embedding-tab">
-                <div class="panel-card">
-                    <div class="card-title-row">
-                        <h3>🧠 Satellite Latent Embedding Channel Inspector</h3>
-                        <span class="badge success">128 Latent Channels</span>
-                    </div>
-                    <p class="desc-text">
-                        Inspect the intermediate compressed 2D Mamba State-Space representation ($z \in \mathbb{R}^{128}$) capturing mesoscale eddy vorticity, Rossby phase, and wind-driven vertical transport.
-                    </p>
-                    <div id="embedding-stats-container">
-                        <div class="embedding-metric-row">
-                            <span class="stat-lbl">Eddy Kinetic Energy Index:</span>
-                            <span class="stat-val" id="eddy-energy-val">4.82</span>
+        <div class="drawer-scroll-content">
+            <!-- Satellite Surface Observations -->
+            <div class="layer-section">
+                <h4>Surface Satellite (2D)</h4>
+                <ul class="layer-menu-list">
+                    <li class="layer-item" data-layer="ssh">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Sea Surface Height (SSH)</span>
+                            <span class="layer-sub">MDT + DUACS Altimetry (m)</span>
                         </div>
-                        <div class="embedding-metric-row">
-                            <span class="stat-lbl">Dominant Mode 1 Weight:</span>
-                            <span class="stat-val" id="mode1-weight-val">0.428 (Thermocline Shift)</span>
+                        <span class="layer-badge">0.6 - 1.4m</span>
+                    </li>
+                    <li class="layer-item" data-layer="sss">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Sea Surface Salinity (SSS)</span>
+                            <span class="layer-sub">SMAP / SMOS Microwave (PSU)</span>
                         </div>
+                        <span class="layer-badge">31 - 37 PSU</span>
+                    </li>
+                    <li class="layer-item" data-layer="sla">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Sea Level Anomaly (SLA)</span>
+                            <span class="layer-sub">DUACS Mesoscale Eddies (m)</span>
+                        </div>
+                        <span class="layer-badge">±0.35m</span>
+                    </li>
+                    <li class="layer-item" data-layer="sst">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Sea Surface Temp (SST)</span>
+                            <span class="layer-sub">OSTIA Satellite Daily (°C)</span>
+                        </div>
+                        <span class="layer-badge">25 - 32°C</span>
+                    </li>
+                    <li class="layer-item" data-layer="currents">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Ocean Currents (U, V)</span>
+                            <span class="layer-sub">OSCAR Surface Velocities (m/s)</span>
+                        </div>
+                        <span class="layer-badge">0 - 1.5 m/s</span>
+                    </li>
+                    <li class="layer-item" data-layer="wind">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Surface Winds (10m)</span>
+                            <span class="layer-sub">CCMP / ASCAT Monsoonal (m/s)</span>
+                        </div>
+                        <span class="layer-badge">0 - 25 m/s</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 3D Subsurface Temperature Reconstruction -->
+            <div class="layer-section">
+                <h4>Subsurface Thermal (3D)</h4>
+                <ul class="layer-menu-list">
+                    <li class="layer-item active" data-layer="temp">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">3D Temperature T(x,y,z)</span>
+                            <span class="layer-sub">OceanMamba + Normal Modes</span>
+                        </div>
+                        <span class="layer-badge highlight">15 Depths</span>
+                    </li>
+                </ul>
+
+                <!-- Depth Selector Slider -->
+                <div id="depth-control-card" class="glass-subcard">
+                    <div class="depth-card-header">
+                        <span>Depth Level:</span>
+                        <strong id="depth-badge-label">200 m</strong>
                     </div>
-                    <div id="embedding-plot-container" style="height: 280px; margin-top: 10px;"></div>
+                    <input type="range" id="depth-range-input" min="0" max="14" value="10" step="1" class="zoom-range-slider">
+                    <div class="depth-pills-row">
+                        <button class="depth-step-btn" data-idx="0">0m</button>
+                        <button class="depth-step-btn" data-idx="5">50m</button>
+                        <button class="depth-step-btn" data-idx="7">100m</button>
+                        <button class="depth-step-btn active" data-idx="10">200m</button>
+                        <button class="depth-step-btn" data-idx="12">500m</button>
+                        <button class="depth-step-btn" data-idx="14">1000m</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- TAB 3: Cyclone TCHP & Disaster Warning -->
-            <div class="tab-content" id="cyclone-tab">
-                <div class="panel-card">
-                    <div class="card-title-row">
-                        <h3>🌀 Tropical Cyclone Rapid Intensification (RI) Studio</h3>
-                        <span class="badge danger" id="cyclone-badge">RI Risk Active</span>
+            <!-- Disaster and Marine Ecosystem Services -->
+            <div class="layer-section">
+                <h4>INCOIS Operational Services</h4>
+                <ul class="layer-menu-list">
+                    <li class="layer-item" data-layer="tchp">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Cyclone TCHP & D26</span>
+                            <span class="layer-sub">Tropical Cyclone Heat (kJ/cm²)</span>
+                        </div>
+                        <span class="layer-badge alert">RI Risk</span>
+                    </li>
+                    <li class="layer-item" data-layer="d20">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">PFZ D20 Thermocline</span>
+                            <span class="layer-sub">Nutrient Upwelling Depth (m)</span>
+                        </div>
+                        <span class="layer-badge">Fisheries</span>
+                    </li>
+                    <li class="layer-item" data-layer="mld">
+                        <div class="layer-radio-dot"></div>
+                        <div class="layer-info">
+                            <span class="layer-title">Mixed Layer Depth (MLD)</span>
+                            <span class="layer-sub">INCOIS OOSA Dispersion (m)</span>
+                        </div>
+                        <span class="layer-badge">Pollution</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Basemap Selector -->
+            <div class="layer-section">
+                <h4>Basemap Style</h4>
+                <div class="basemap-grid">
+                    <button class="basemap-tile-btn active" data-basemap="satellite">Satellite</button>
+                    <button class="basemap-tile-btn" data-basemap="dark">Dark Ocean</button>
+                    <button class="basemap-tile-btn" data-basemap="ocean">Bathymetry</button>
+                    <button class="basemap-tile-btn" data-basemap="osm">Street</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Floating Action Toolbar (Right-Center) -->
+    <div class="floating-fab-toolbar">
+        <button id="btn-toggle-3d" class="fab-btn" title="Toggle 3D Volumetric Studio">
+            <span class="fab-icon">🧊</span>
+            <span class="fab-tooltip">3D Studio</span>
+        </button>
+        <button id="btn-deploy-argo" class="fab-btn" title="Deploy Virtual Argo Float">
+            <span class="fab-icon">📍</span>
+            <span class="fab-tooltip">Deploy Float</span>
+        </button>
+        <button id="btn-reset-view" class="fab-btn" title="Reset Map View to North Indian Ocean">
+            <span class="fab-icon">⟲</span>
+            <span class="fab-tooltip">Reset View</span>
+        </button>
+    </div>
+
+    <!-- Colormap Legend HUD (Bottom Left) -->
+    <div id="colormap-legend-hud" class="legend-glass-card">
+        <div class="legend-meta">
+            <span id="legend-variable-title">Reconstructed Ocean Temperature (°C)</span>
+            <span id="legend-depth-tag" class="legend-tag">Depth: 200m</span>
+        </div>
+        <div class="legend-bar-container">
+            <div id="legend-gradient-bar" class="legend-gradient-bar"></div>
+        </div>
+        <div class="legend-scale-row">
+            <span id="legend-val-min">4.0 °C</span>
+            <span id="legend-val-mid">17.5 °C</span>
+            <span id="legend-val-max">31.0 °C</span>
+        </div>
+    </div>
+
+    <!-- Bottom Timeline Playback Scrubber -->
+    <div class="bottom-timeline-hud">
+        <div class="timeline-controls-left">
+            <button id="btn-timeline-play" class="timeline-btn play" title="Play Simulation">▶</button>
+            <button id="btn-timeline-step-back" class="timeline-btn" title="Step Previous Day">⏮</button>
+            <button id="btn-timeline-step-fwd" class="timeline-btn" title="Step Next Day">⏭</button>
+            <button id="btn-speed-toggle" class="timeline-speed-pill" title="Simulation Speed">1x</button>
+        </div>
+
+        <div class="timeline-slider-center">
+            <div class="timeline-track-header">
+                <span class="timeline-mode-label">Daily Temporal Synoptic Cycle</span>
+                <span id="timeline-date-display" class="timeline-date-val">15 AUG 2023 · 12:00 UTC</span>
+            </div>
+            <input type="range" id="timeline-slider" min="0" max="9" value="0" step="1" class="zoom-range-slider">
+            <div class="timeline-ticks">
+                <span>Day 1</span>
+                <span>Day 3</span>
+                <span>Day 5</span>
+                <span>Day 7</span>
+                <span>Day 10</span>
+            </div>
+        </div>
+
+        <div class="timeline-status-right">
+            <div class="status-indicator-box">
+                <span class="status-dot-pulse"></span>
+                <span id="system-status-label">4D-Var Neural Assimilation Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hover Crosshair Telemetry Tooltip -->
+    <div id="crosshair-tooltip" class="floating-crosshair-tooltip" style="display: none;">
+        <div class="tooltip-header">
+            <strong id="tt-basin">Arabian Sea</strong>
+            <span id="tt-coords">15.00°N, 70.00°E</span>
+        </div>
+        <div class="tooltip-grid">
+            <div class="tt-cell">
+                <span class="tt-lbl">SST</span>
+                <span id="tt-sst" class="tt-val">28.4°C</span>
+            </div>
+            <div class="tt-cell">
+                <span class="tt-lbl">SSS</span>
+                <span id="tt-sss" class="tt-val">36.1 PSU</span>
+            </div>
+            <div class="tt-cell">
+                <span class="tt-lbl">SSH</span>
+                <span id="tt-ssh" class="tt-val">1.04 m</span>
+            </div>
+            <div class="tt-cell">
+                <span class="tt-lbl">SLA</span>
+                <span id="tt-sla" class="tt-val">+9.2 cm</span>
+            </div>
+            <div class="tt-cell">
+                <span class="tt-lbl">Current</span>
+                <span id="tt-current" class="tt-val">0.42 m/s</span>
+            </div>
+            <div class="tt-cell">
+                <span class="tt-lbl">Wind</span>
+                <span id="tt-wind" class="tt-val">7.8 m/s</span>
+            </div>
+            <div class="tt-cell highlight">
+                <span class="tt-lbl" id="tt-depth-lbl">T(200m)</span>
+                <span id="tt-depth-temp" class="tt-val text-cyan">16.2°C</span>
+            </div>
+            <div class="tt-cell">
+                <span class="tt-lbl">TCHP</span>
+                <span id="tt-tchp" class="tt-val">78 kJ/cm²</span>
+            </div>
+        </div>
+        <div class="tooltip-footer">
+            <span>Click ocean to lock profile</span>
+        </div>
+    </div>
+
+    <!-- Right Sliding Intelligence Drawer -->
+    <aside id="right-intelligence-drawer" class="right-intelligence-panel open">
+        <div class="panel-header-tabs">
+            <button class="intel-tab-btn active" data-tab="tab-profile">Profile T(z)</button>
+            <button class="intel-tab-btn" data-tab="tab-telemetry">Telemetry</button>
+            <button class="intel-tab-btn" data-tab="tab-embeddings">Mamba</button>
+            <button class="intel-tab-btn" data-tab="tab-cyclone">Cyclone</button>
+            <button class="intel-tab-btn" data-tab="tab-services">PFZ & OOSA</button>
+            <button class="intel-tab-btn" data-tab="tab-scorecard">Scorecard</button>
+        </div>
+
+        <div class="panel-body-scroll">
+            <!-- TAB 1: Vertical Profile and Uncertainty -->
+            <div id="tab-profile" class="intel-tab-content active">
+                <div class="metric-triad">
+                    <div class="mini-stat-card">
+                        <span class="stat-caption">Mixed Layer (MLD)</span>
+                        <strong id="card-mld-val" class="stat-number">45.0 m</strong>
+                        <span class="stat-sub">ΔT = 0.5°C</span>
                     </div>
-                    <p class="desc-text">
-                        Historical cyclones coupled with real-time reconstructed ocean heat pools (TCHP & D26).
-                    </p>
+                    <div class="mini-stat-card">
+                        <span class="stat-caption">26°C Isotherm (D26)</span>
+                        <strong id="card-d26-val" class="stat-number">98.0 m</strong>
+                        <span class="stat-sub">Cyclone Warm Pool</span>
+                    </div>
+                    <div class="mini-stat-card highlight">
+                        <span class="stat-caption">Heat Fuel (TCHP)</span>
+                        <strong id="card-tchp-val" class="stat-number text-accent">84.2 kJ/cm²</strong>
+                        <span class="stat-sub">RI Alert > 60</span>
+                    </div>
+                </div>
+
+                <div class="plot-container-card">
+                    <div class="plot-card-header">
+                        <span>Vertical Temperature Sounding</span>
+                        <span class="badge-dim">0 - 1000m</span>
+                    </div>
+                    <div id="profile-plot-container"></div>
+                </div>
+
+                <div class="physics-banner">
+                    <span class="banner-badge">Stability Enforced</span>
+                    <p>Physics guarantee: Reconstructed via 5 analytical Sturm-Liouville vertical baroclinic normal modes. Gravitational stability enforced with zero density inversions (N² ≥ 0).</p>
+                </div>
+            </div>
+
+            <!-- TAB 2: Point Oceanographic Telemetry -->
+            <div id="tab-telemetry" class="intel-tab-content">
+                <div class="telemetry-card">
+                    <h3>Multi-Modal Oceanic Sounding</h3>
+                    <p class="section-desc">Harmonized parameters derived from multi-sensor satellite constellation and deep learning state-space reconstruction.</p>
                     
-                    <div class="cyclone-select-row">
-                        <label for="cyclone-selector">Select Cyclone Track:</label>
-                        <select id="cyclone-selector" class="dropdown-select">
+                    <div class="telemetry-key-grid">
+                        <div class="param-box">
+                            <span class="param-label">Sea Surface Height (SSH)</span>
+                            <strong id="tel-ssh" class="param-val">1.042 m</strong>
+                            <span class="param-src">MDT + DUACS</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">Sea Level Anomaly (SLA)</span>
+                            <strong id="tel-sla" class="param-val">+8.4 cm</strong>
+                            <span class="param-src">Geostrophic Eddy</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">Sea Surface Salinity (SSS)</span>
+                            <strong id="tel-sss" class="param-val">36.25 PSU</strong>
+                            <span class="param-src">SMAP / SMOS</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">Sea Surface Temp (SST)</span>
+                            <strong id="tel-sst" class="param-val">29.40 °C</strong>
+                            <span class="param-src">OSTIA L4</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">Surface Current Speed</span>
+                            <strong id="tel-curr-spd" class="param-val">0.38 m/s</strong>
+                            <span class="param-src" id="tel-curr-dir">Direction: 215° SW</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">10m Wind Speed</span>
+                            <strong id="tel-wind-spd" class="param-val">7.4 m/s</strong>
+                            <span class="param-src" id="tel-wind-dir">Direction: 235° SW</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">D20 Thermocline Proxy</span>
+                            <strong id="tel-d20" class="param-val">62.5 m</strong>
+                            <span class="param-src">Nutrient Lifting</span>
+                        </div>
+                        <div class="param-box">
+                            <span class="param-label">Active Basin Domain</span>
+                            <strong id="tel-basin" class="param-val">Arabian Sea</strong>
+                            <span class="param-src">North Indian Ocean</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Latent Embeddings -->
+            <div id="tab-embeddings" class="intel-tab-content">
+                <div class="telemetry-card">
+                    <div class="flex-between">
+                        <h3>OceanMamba SSM Latent Space</h3>
+                        <span class="badge-accent">128 Channels</span>
+                    </div>
+                    <p class="section-desc">2D Selective Scan (SS2D) linear-complexity state representations capturing eddy vorticity, thermocline slope, and wind stress memory.</p>
+
+                    <div class="stat-dual-row">
+                        <div class="stat-mini-pill">
+                            <span>Eddy Kinetic Energy:</span>
+                            <strong id="eke-val">4.82</strong>
+                        </div>
+                        <div class="stat-mini-pill">
+                            <span>Mode 1 Weight:</span>
+                            <strong id="mode1-val">0.428</strong>
+                        </div>
+                    </div>
+
+                    <div class="plot-card-header" style="margin-top: 14px;">
+                        <span>Feature Group Energy Breakdown</span>
+                    </div>
+                    <div id="embedding-plot-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Cyclone RI Tracker -->
+            <div id="tab-cyclone" class="intel-tab-content">
+                <div class="telemetry-card">
+                    <div class="flex-between">
+                        <h3>Cyclone Rapid Intensification</h3>
+                        <span id="cyclone-status-badge" class="badge-alert">RI Risk Active</span>
+                    </div>
+                    <p class="section-desc">Coupled thermodynamic upper ocean heat tracking along historical cyclone tracks in Arabian Sea and Bay of Bengal.</p>
+
+                    <div class="form-group-custom">
+                        <label for="cyclone-selector">Cyclone Track Selection:</label>
+                        <select id="cyclone-selector" class="glass-select">
                             <option value="biparjoy_2023">Cyclone Biparjoy (Arabian Sea, 2023)</option>
                             <option value="mocha_2023">Super Cyclone Mocha (Bay of Bengal, 2023)</option>
                             <option value="tauktae_2021">Cyclone Tauktae (Arabian Sea, 2021)</option>
@@ -210,66 +471,56 @@
                 </div>
             </div>
 
-            <!-- TAB 4: PFZ Upwelling & INCOIS OOSA Pollution Advisory -->
-            <div class="tab-content" id="eco-tab">
-                <div class="panel-card">
-                    <div class="card-title-row">
-                        <h3>🐟 Potential Fishing Zone (PFZ) & D20 Upwelling</h3>
-                        <span class="badge highlight" id="pfz-badge">High Potential</span>
+            <!-- TAB 5: PFZ and Pollution Services -->
+            <div id="tab-services" class="intel-tab-content">
+                <div class="telemetry-card">
+                    <div class="flex-between">
+                        <h3>Potential Fishing Zone (PFZ)</h3>
+                        <span id="pfz-status-badge" class="badge-success">High Potential</span>
                     </div>
-                    <div class="metric-cards-row">
-                        <div class="mini-card">
-                            <span class="mini-title">D20 Isotherm Depth</span>
-                            <span class="mini-val" id="d20-val">58.4 m</span>
-                            <span class="mini-sub">Thermocline Proxy</span>
+                    <div class="mini-stat-pair">
+                        <div class="mini-stat-box">
+                            <span class="stat-lbl">D20 Depth</span>
+                            <strong id="pfz-d20-val">58.4 m</strong>
                         </div>
-                        <div class="mini-card">
-                            <span class="mini-title">Recommended Gear Depth</span>
-                            <span class="mini-val text-accent" id="gear-depth-val">48.0 m</span>
-                            <span class="mini-sub">Pelagic Shoal Depth</span>
+                        <div class="mini-stat-box highlight">
+                            <span class="stat-lbl">Recommended Gear Depth</span>
+                            <strong id="pfz-gear-val" class="text-cyan">48.0 m</strong>
                         </div>
                     </div>
-                    <p class="desc-text" id="pfz-advisory-text" style="font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); margin-top: 8px;">
-                        Active coastal upwelling detected. Nutrient lifting promotes pelagic fish aggregation.
-                    </p>
+                    <p id="pfz-advisory-msg" class="advisory-text">Active coastal divergence upwelling detected. Favorable pelagic shoal aggregation depth identified.</p>
                 </div>
 
-                <div class="panel-card" style="margin-top: 12px;">
-                    <div class="card-title-row">
-                        <h3>🛢️ INCOIS OOSA: Oil Spill & Plastic Submergence</h3>
-                        <span class="badge warning" id="pollution-badge">OOSA Advisory</span>
+                <div class="telemetry-card" style="margin-top: 14px;">
+                    <div class="flex-between">
+                        <h3>INCOIS OOSA: Oil & Plastic</h3>
+                        <span id="oosa-status-badge" class="badge-warn">Advisory</span>
                     </div>
-                    <div class="metric-cards-row">
-                        <div class="mini-card">
-                            <span class="mini-title">Oil Droplet Mix Depth</span>
-                            <span class="mini-val" id="oil-depth-val">28.5 m</span>
-                            <span class="mini-sub">MLD Entrainment Limit</span>
+                    <div class="mini-stat-pair">
+                        <div class="mini-stat-box">
+                            <span class="stat-lbl">Oil Droplet Mix Depth</span>
+                            <strong id="oosa-oil-val">28.5 m</strong>
                         </div>
-                        <div class="mini-card">
-                            <span class="mini-title">Microplastic Zone</span>
-                            <span class="mini-val" id="plastic-zone-val">Euphotic (0-50m)</span>
-                            <span class="mini-sub">Subsurface Drift</span>
+                        <div class="mini-stat-box">
+                            <span class="stat-lbl">Microplastic Layer</span>
+                            <strong id="oosa-plastic-val">Euphotic (0-50m)</strong>
                         </div>
                     </div>
-                    <p class="desc-text" id="pollution-advisory-text" style="font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); margin-top: 8px;">
-                        Moderate mixed layer allows wind turbulence to entrain microplastics and oil droplets down to MLD.
-                    </p>
+                    <p id="oosa-advisory-msg" class="advisory-text">Wind stress and mixed layer boundary conditions determine vertical droplet entrainment depth limit.</p>
                 </div>
             </div>
 
-            <!-- TAB 5: INCOIS 15-Depth Benchmark Scorecard -->
-            <div class="tab-content" id="bench-tab">
-                <div class="panel-card">
-                    <div class="card-title-row">
-                        <h3>📊 15-Depth Verification Benchmark Scorecard</h3>
-                        <span class="badge success">Independent Argo</span>
+            <!-- TAB 6: 15-Depth Scorecard -->
+            <div id="tab-scorecard" class="intel-tab-content">
+                <div class="telemetry-card">
+                    <div class="flex-between">
+                        <h3>15-Depth Benchmark Scorecard</h3>
+                        <span class="badge-success">Argo Validated</span>
                     </div>
-                    <p class="desc-text">
-                        Depth-stratified RMSE, MAE, Bias, and Pearson Correlation ($r$) evaluated against independent ARGO in-situ observations.
-                    </p>
-                    
-                    <div class="table-responsive">
-                        <table class="bench-table" id="bench-table-body">
+                    <p class="section-desc">Stratified verification metrics against independent in-situ Argo profiling floats per INCOIS evaluation standards.</p>
+
+                    <div class="table-scroll-container">
+                        <table class="zoom-scorecard-table">
                             <thead>
                                 <tr>
                                     <th>Depth</th>
@@ -279,38 +530,36 @@
                                     <th>Pearson r</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Rendered dynamically by app.js -->
+                            <tbody id="scorecard-table-body">
+                                <!-- Rendered dynamically -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-        </aside>
-    </main>
+        </div>
+    </aside>
 
-    <!-- Virtual Float Deployment Modal -->
-    <div class="modal-backdrop" id="float-modal" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>📍 Deploy Virtual In-Situ Argo Float</h3>
-                <button class="close-btn" id="btn-close-modal">&times;</button>
+    <!-- Virtual Float Modal -->
+    <div id="float-modal" class="glass-modal-backdrop" style="display: none;">
+        <div class="glass-modal-box">
+            <div class="modal-top">
+                <h3>Deploy Virtual Argo Float</h3>
+                <button id="btn-close-modal" class="glass-btn-icon">✕</button>
             </div>
-            <p class="modal-desc">
-                Click anywhere on the ocean map or enter coordinates below to deploy a virtual Argo float cast. The <strong>Neural 4D-Var cross-attention layer</strong> will instantly assimilate this float and recalibrate surrounding 3D thermal predictions.
-            </p>
-            <div class="modal-form">
+            <p class="modal-intro">Drop a virtual Argo float cast token into the North Indian Ocean. The Neural 4D-Var cross-attention layer immediately assimilates this cast into the latent space.</p>
+            <div class="modal-form-grid">
                 <div class="form-row">
-                    <label>Latitude (°N):</label>
-                    <input type="number" id="modal-lat" value="14.50" step="0.25" min="5.0" max="30.0">
+                    <label for="input-float-lat">Latitude (°N):</label>
+                    <input type="number" id="input-float-lat" value="14.50" step="0.25" min="5.0" max="30.0" class="glass-input">
                 </div>
                 <div class="form-row">
-                    <label>Longitude (°E):</label>
-                    <input type="number" id="modal-lon" value="68.75" step="0.25" min="45.0" max="105.0">
+                    <label for="input-float-lon">Longitude (°E):</label>
+                    <input type="number" id="input-float-lon" value="68.75" step="0.25" min="45.0" max="105.0" class="glass-input">
                 </div>
-                <div class="form-actions">
-                    <button class="action-btn" id="btn-confirm-deploy">Assimilate Float Token</button>
-                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-submit-float" class="action-submit-btn">Assimilate Float Cast</button>
             </div>
         </div>
     </div>

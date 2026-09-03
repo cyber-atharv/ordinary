@@ -163,10 +163,41 @@ def predict_profile(
     pfz_res = analyze_pfz_and_upwelling(t_med, lat, lon, STANDARD_DEPTHS)
     pollution_res = analyze_oil_spill_and_plastic_dispersion(t_med, lat, lon, wind_speed_ms=6.5, depths=STANDARD_DEPTHS)
 
+    # Surface parameter extraction at point
+    sst_val = float(DATASET_CACHE["surface_features"][0, 0, lat_idx, lon_idx])
+    sss_val = float(DATASET_CACHE["surface_features"][0, 1, lat_idx, lon_idx])
+    sla_val = float(DATASET_CACHE["surface_features"][0, 2, lat_idx, lon_idx])
+    ssh_val = round(0.95 + sla_val, 3)
+    u_c = float(DATASET_CACHE["surface_features"][0, 3, lat_idx, lon_idx])
+    v_c = float(DATASET_CACHE["surface_features"][0, 4, lat_idx, lon_idx])
+    curr_spd = round(float(np.sqrt(u_c**2 + v_c**2)), 2)
+    curr_dir = round(float((np.degrees(np.arctan2(u_c, v_c)) + 360) % 360), 1)
+    u_w = float(DATASET_CACHE["surface_features"][0, 5, lat_idx, lon_idx])
+    v_w = float(DATASET_CACHE["surface_features"][0, 6, lat_idx, lon_idx])
+    wind_spd = round(float(np.sqrt(u_w**2 + v_w**2)), 1)
+    wind_dir = round(float((np.degrees(np.arctan2(u_w, v_w)) + 360) % 360), 1)
+
+    # Basin identification
+    if lon < 77.5:
+        basin = "Northern Arabian Sea" if lat > 20.0 else ("Southwest Arabian Sea" if lat < 10.0 else "Central Arabian Sea")
+    elif lon > 80.0:
+        basin = "Head Bay of Bengal" if lat > 18.0 else ("Andaman Sea" if lon > 92.0 else "Central Bay of Bengal")
+    else:
+        basin = "Lakshadweep Sea / Equatorial Front"
+
     return ProfilePredictionResponse(
         latitude=lat,
         longitude=lon,
         date=date,
+        basin_name=basin,
+        sst_degC=round(sst_val, 2),
+        sss_psu=round(sss_val, 2),
+        sla_m=round(sla_val, 3),
+        ssh_m=ssh_val,
+        current_speed_ms=curr_spd,
+        current_dir_deg=curr_dir,
+        wind_speed_ms=wind_spd,
+        wind_dir_deg=wind_dir,
         depths=STANDARD_DEPTHS.tolist(),
         temperature_median=[round(float(x), 2) for x in t_med],
         temperature_lower_10=[round(float(x), 2) for x in t_low],
@@ -184,10 +215,10 @@ def predict_profile(
 @app.get("/api/v1/predict/slice")
 def get_depth_slice(
     depth_m: float = Query(200.0), 
-    variable: str = Query("temp", description="'temp', 'sla', 'sst', 'wind', 'tchp', or 'd20'")
+    variable: str = Query("temp", description="'temp', 'sst', 'sss', 'ssh', 'sla', 'currents', 'wind', 'tchp', 'd20', or 'mld'")
 ):
     """
-    Returns 2D spatial grid for the Web GIS map layer at the selected depth or surface variable.
+    Returns 2D spatial grid for the selected depth or surface variable.
     """
     step = 2
     lats = DATASET_CACHE["lats"][::step]
@@ -199,8 +230,17 @@ def get_depth_slice(
         grid = DATASET_CACHE["ground_truth_3d"][0, depth_idx, ::step, ::step].copy()
     elif variable == "sst":
         grid = DATASET_CACHE["surface_features"][0, 0, ::step, ::step].copy()
+    elif variable == "sss":
+        grid = DATASET_CACHE["surface_features"][0, 1, ::step, ::step].copy()
     elif variable == "sla":
         grid = DATASET_CACHE["surface_features"][0, 2, ::step, ::step].copy()
+    elif variable == "ssh":
+        sla_sub = DATASET_CACHE["surface_features"][0, 2, ::step, ::step].copy()
+        grid = 0.95 + sla_sub
+    elif variable == "currents":
+        u = DATASET_CACHE["surface_features"][0, 3, ::step, ::step]
+        v = DATASET_CACHE["surface_features"][0, 4, ::step, ::step]
+        grid = np.sqrt(u**2 + v**2)
     elif variable == "wind":
         u = DATASET_CACHE["surface_features"][0, 5, ::step, ::step]
         v = DATASET_CACHE["surface_features"][0, 6, ::step, ::step]
@@ -209,6 +249,10 @@ def get_depth_slice(
         t_sub = DATASET_CACHE["ground_truth_3d"][0, :, ::step, ::step]
         tchp_res = compute_tchp_and_d26_numpy(t_sub, STANDARD_DEPTHS)
         grid = tchp_res["tchp_kj_cm2"]
+    elif variable == "mld":
+        t_sub = DATASET_CACHE["ground_truth_3d"][0, :, ::step, ::step]
+        tchp_res = compute_tchp_and_d26_numpy(t_sub, STANDARD_DEPTHS)
+        grid = tchp_res["mld_m"]
     elif variable == "d20":
         t_sub = DATASET_CACHE["ground_truth_3d"][0, :, ::step, ::step]
         num_lat, num_lon = t_sub.shape[1], t_sub.shape[2]

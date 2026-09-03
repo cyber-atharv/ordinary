@@ -17,6 +17,15 @@ class ProfilePredictionResponse(BaseModel):
     latitude: float
     longitude: float
     date: str
+    basin_name: Optional[str] = "North Indian Ocean"
+    sst_degC: Optional[float] = 28.5
+    sss_psu: Optional[float] = 35.5
+    sla_m: Optional[float] = 0.05
+    ssh_m: Optional[float] = 1.05
+    current_speed_ms: Optional[float] = 0.35
+    current_dir_deg: Optional[float] = 180.0
+    wind_speed_ms: Optional[float] = 6.5
+    wind_dir_deg: Optional[float] = 225.0
     depths: List[float]
     temperature_median: List[float]
     temperature_lower_10: List[float]
