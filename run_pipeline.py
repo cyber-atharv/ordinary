@@ -1,14 +1,12 @@
 """
-OceanEmbed-X: Master Operational Pipeline Runner (SIH26066)
-Indian National Centre for Ocean Information Services (INCOIS) / MoES
-
-Executes the complete end-to-end framework:
-1. Multi-Source Satellite & In-Situ Harmonization (0.25 deg Daily Grid)
-2. Analytical Sturm-Liouville Baroclinic Normal Mode Decomposition
-3. OceanMamba 2D Selective State-Space Latent Embedding Extraction
-4. Physics-Guided 3D Subsurface Temperature Reconstruction (15 Depths: 0-1000m)
-5. INCOIS Operational & Ecosystem Analytics (TCHP, PFZ D20, OOSA Oil/Plastic, Active Sampling)
-6. 15-Depth Verification Benchmark Scorecard Export
+OceanEmbed-X Master Runner
+This single script runs the entire AI pipeline from start to finish:
+1. Loads satellite observations and real-world Argo float casts
+2. Sets up ocean wave physics (Sturm-Liouville normal modes) to enforce buoyancy
+3. Runs the Mamba AI model to extract compact latent feature embeddings
+4. Predicts 3D underwater temperatures down to 1,000 meters deep
+5. Generates advisories for cyclones, fisheries, and oil spill response
+6. Computes accuracy scores and exports a clean CSV report
 
 Usage:
     python run_pipeline.py --mode demo
@@ -21,7 +19,7 @@ import time
 import numpy as np
 import torch
 
-# Ensure src is discoverable
+# Ensure the local 'src' directory is in Python's import search path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from src.data.sturm_liouville import STANDARD_DEPTHS, solve_baroclinic_normal_modes, compute_standard_climatology_profile
@@ -37,16 +35,16 @@ from src.evaluation.benchmark_report import generate_depth_benchmark, print_benc
 
 def run_master_pipeline(args):
     print("=" * 80)
-    print("OceanEmbed-X: Satellite Embedding-Based Subsurface Thermal Reconstruction")
-    print("Indian National Centre for Ocean Information Services (INCOIS) / MoES -- SIH26066")
+    print("OceanEmbed-X: 3D Ocean Temperature AI Reconstruction Pipeline")
+    print("Ministry of Earth Sciences (MoES) / INCOIS -- SIH26066")
     print("=" * 80)
 
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
     start_total = time.time()
 
-    # Stage 1: Data Ingestion & Harmonization
-    print("\n[Stage 1/6] Ingesting & Harmonizing Multi-Source Satellite & In-Situ Observations...")
+    # Stage 1: Load satellite and float observations
+    print("\n[Stage 1/6] Loading satellite surface observations & Argo float measurements...")
     t0 = time.time()
     dataset = generate_north_indian_ocean_dataset(num_days=args.days, resolution=0.25, seed=42)
     lats = dataset["lats"]

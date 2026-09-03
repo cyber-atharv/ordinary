@@ -1,8 +1,10 @@
 """
-High-Fidelity Physical Synthetic Ocean Data Generator for SIH26066
-Generates realistic 3D volumetric ocean arrays for the North Indian Ocean
-(Arabian Sea, Bay of Bengal, 5°N-30°N, 45°E-105°E at 0.25° daily resolution)
-with mesoscale warm/cold eddies, monsoonal wind stress, and in-situ Argo float casts.
+Realistic Ocean Data Generator for SIH26066
+Created to generate realistic 3D ocean data across the North Indian Ocean
+(Arabian Sea and Bay of Bengal, 5°N-30°N, 45°E-105°E on a 0.25° daily grid).
+
+This lets you test the full AI pipeline offline without needing to download
+gigabytes of raw satellite files from NASA or Copernicus servers.
 """
 
 import numpy as np
@@ -20,19 +22,12 @@ def generate_north_indian_ocean_dataset(
     seed: int = 42
 ) -> Dict[str, Any]:
     """
-    Generates realistic daily multi-modal satellite surface tensors and 3D subsurface ground truth.
-    
-    Returns dictionary with:
-        lats: array of shape [101]
-        lons: array of shape [241]
-        depths: array of shape [15]
-        surface_features: array of shape [num_days, 7, 101, 241]
-            (Channels: SST, SSS, SLA, U_curr, V_curr, U_wind, V_wind)
-        ground_truth_3d: array of shape [num_days, 15, 101, 241]
-        argo_floats: list of dicts representing in-situ casts for each day
+    Builds a simulated daily dataset with 2D satellite surface observations
+    and corresponding 3D underwater temperature profiles (ground truth).
     """
     np.random.seed(seed)
     
+    # Create the latitude and longitude coordinate axes
     lats = np.arange(lat_range[0], lat_range[1] + 1e-5, resolution, dtype=np.float32)
     lons = np.arange(lon_range[0], lon_range[1] + 1e-5, resolution, dtype=np.float32)
     num_lat = len(lats)
@@ -40,9 +35,10 @@ def generate_north_indian_ocean_dataset(
     depths = STANDARD_DEPTHS
     num_depths = len(depths)
     
+    # 2D coordinate grids for fast vectorized math
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
-    # 1. High-Precision Land-Sea Mask for North Indian Ocean
+    # Step 1: Define coastal polygons so we can keep the land clean and strictly color the sea
     LAND_POLYGONS = [
         # Indian Subcontinent & Northern Eurasian landmass
         [
@@ -138,28 +134,29 @@ def generate_north_indian_ocean_dataset(
     argo_float_catalog = []
     
     for d in range(num_days):
+        # Calculate the day of the year in radians for gentle seasonal changes
         day_phase = (d % 365) / 365.0 * 2 * np.pi
         
-        # --- Physical Eddy Fields ---
-        # 1. Arabian Sea Warm Pool (Anticyclonic Eddy at 12°N, 68°E)
+        # Step 2: Simulate natural swirling ocean eddies (whirlpools)
+        # 1. Warm core eddy in the Arabian Sea Mini Warm Pool (12.5°N, 68°E)
         eddy1 = 0.25 * np.exp(-((lat_grid - 12.5)**2 + (lon_grid - 68.0)**2) / 8.0)
-        # 2. Somali Upwelling Cold Eddy (Cyclonic Eddy at 10°N, 53°E)
+        # 2. Cold upwelling eddy along the Somali coast (10°N, 53°E)
         eddy2 = -0.35 * np.exp(-((lat_grid - 10.0)**2 + (lon_grid - 53.0)**2) / 10.0)
-        # 3. Bay of Bengal Freshwater / Warm Gyre (15°N, 88°E)
+        # 3. Warm fresh gyre in the Bay of Bengal (15°N, 88°E)
         eddy3 = 0.20 * np.exp(-((lat_grid - 15.0)**2 + (lon_grid - 88.0)**2) / 12.0)
         
+        # Sea surface height anomaly (small bumps and dips in water elevation)
         sla_field = eddy1 + eddy2 + eddy3 + 0.05 * np.sin(lat_grid * 0.3 + day_phase)
         
-        # SST: Climatological gradient (warmer in south ~29°C, cooler in north ~27°C) + Eddy anomalies
+        # Step 3: Sea surface temperature (warmer near equator ~29.5°C, cooler up north ~27°C)
         base_sst = 29.5 - 0.08 * (lat_grid - 5.0) + 0.8 * (sla_field / 0.3)
         noise_sst = np.random.normal(0, 0.15, (num_lat, num_lon))
         sst_field = base_sst + noise_sst
         
-        # SSS: Arabian sea is saline (~36 psu), Bay of Bengal is fresh (~32 psu due to river runoff)
+        # Step 4: Salinity (Arabian Sea is extra salty ~36.5 PSU due to evaporation, BoB is fresher ~32 PSU)
         sss_field = 36.5 - 0.06 * (lon_grid - 50.0) - 0.5 * (sla_field / 0.3)
         
-        # Surface Currents (Geostrophic approximation derived from SLA gradient)
-        # u = -(g/f) d(SLA)/dy, v = (g/f) d(SLA)/dx
+        # Step 5: Surface water currents derived from water height slopes (geostrophic balance)
         d_sla_dy, d_sla_dx = np.gradient(sla_field, resolution * 111000, resolution * 111000)
         f_coriolis = 2 * 7.2921e-5 * np.sin(np.radians(np.maximum(lat_grid, 4.0)))
         u_curr = - (9.81 / f_coriolis) * d_sla_dy
@@ -167,11 +164,11 @@ def generate_north_indian_ocean_dataset(
         u_curr = np.clip(u_curr + 0.1 * np.cos(day_phase), -1.5, 1.5)
         v_curr = np.clip(v_curr + 0.1 * np.sin(day_phase), -1.5, 1.5)
         
-        # Surface Winds (Southwest monsoonal flow in summer)
+        # Step 6: Southwest summer monsoon wind flow
         u_wind = 6.0 + 3.0 * np.cos(day_phase) + np.random.normal(0, 0.5, (num_lat, num_lon))
         v_wind = 4.0 + 2.5 * np.sin(day_phase) + np.random.normal(0, 0.5, (num_lat, num_lon))
         
-        # Apply Land Mask
+        # Zero out any land areas so data is strictly for ocean water
         sst_field[is_land] = np.nan
         sss_field[is_land] = np.nan
         sla_field[is_land] = np.nan
@@ -180,7 +177,7 @@ def generate_north_indian_ocean_dataset(
         u_wind[is_land] = 0.0
         v_wind[is_land] = 0.0
         
-        # Store 7-channel surface tensor
+        # Pack the 7 surface observations into our daily feature array
         surface_tensors[d, 0] = np.nan_to_num(sst_field, nan=0.0)
         surface_tensors[d, 1] = np.nan_to_num(sss_field, nan=35.0)
         surface_tensors[d, 2] = np.nan_to_num(sla_field, nan=0.0)
@@ -189,9 +186,8 @@ def generate_north_indian_ocean_dataset(
         surface_tensors[d, 5] = u_wind
         surface_tensors[d, 6] = v_wind
         
-        # --- 3D Subsurface Temperature Field Reconstruction (Ground Truth) ---
-        # Baroclinic coupling: Positive SLA (warm eddy) deepens thermocline (warmer at 100-200m)
-        # Negative SLA (upwelling) shoals thermocline (colder at 50-150m)
+        # Step 7: Build the 3D underwater temperature profile across all 15 depths
+        # Warm eddies push the warm layer deeper down, while cold upwelling brings cold water up
         for k, z in enumerate(depths):
             thermocline_depth_response = np.exp(-((z - 120.0)**2) / (2 * 65.0**2))
             vertical_eddy_t = (sla_field / 0.15) * 2.8 * thermocline_depth_response
@@ -201,10 +197,10 @@ def generate_north_indian_ocean_dataset(
             layer_t[is_land] = np.nan
             subsurface_3d[d, k] = np.nan_to_num(layer_t, nan=0.0)
             
-        # --- Generate 15 Realistic Argo Float In-Situ Profiles for Day d ---
+        # Step 8: Simulate real in-situ Argo floats drifting in the sea on this day
         num_floats = 15
         for f in range(num_floats):
-            # Pick a valid ocean coordinate
+            # Pick a random point in the water, making sure it isn't on land
             for _ in range(50):
                 f_lat_idx = np.random.randint(5, num_lat - 5)
                 f_lon_idx = np.random.randint(5, num_lon - 5)

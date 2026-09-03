@@ -4,7 +4,8 @@
   "description": "sih 2026 code OceanEmbed",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preview": "npx serve docs"
   },
   "repository": {
     "type": "git",
@@ -17,5 +18,5 @@
   "bugs": {
     "url": "https://github.com/cyber-atharv/ordinary/issues"
   },
-  "homepage": "https://github.com/cyber-atharv/ordinary#readme"
+  "homepage": "https://cyber-atharv.github.io/ordinary/"
 }

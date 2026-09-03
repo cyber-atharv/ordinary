@@ -1,20 +1,13 @@
 """
-FastAPI Operational REST Server for OceanEmbed-X (SIH26066)
-Indian National Centre for Ocean Information Services (INCOIS) / MoES
+FastAPI Operational Server for OceanEmbed-X
+This is the backend web server that connects our AI model with the web map.
 
-Endpoints:
-- /api/v1/health: System health and grid metadata
-- /api/v1/predict/profile: 3D profile reconstruction with multi-quantile uncertainty bounds
-- /api/v1/predict/slice: 2D depth layer & surface variables (SST, SSS, SLA, Winds, TCHP, D20)
-- /api/v1/volume/3d: 3D volumetric grid for WebGL isosurface rendering
-- /api/v1/embeddings/inspect: Satellite latent embedding channel statistics & weights
-- /api/v1/domain/pfz: Potential Fishing Zone (PFZ) & D20 upwelling advisory
-- /api/v1/domain/pollution: INCOIS OOSA oil spill thermal footprint & plastic dispersion
-- /api/v1/domain/active_sampling: Optimal Argo float deployment recommendations
-- /api/v1/cyclones/tracks: Cyclone database with TCHP rapid intensification tracking
-- /api/v1/floats/inject: In-situ Neural 4D-Var virtual float deployment
-- /api/v1/evaluation/benchmark: 15-depth evaluation scorecard (RMSE, Bias, MAE, Correlation)
-- /api/v1/export/geojson: OGC/INCOIS GeoJSON thermal slice exporter
+It gives you endpoints to:
+- Predict 3D ocean temperatures at any clicked coordinate point
+- Fetch full 2D map slices at 15 different depth layers (0m to 1000m)
+- Track tropical cyclones and their upper-ocean heat energy (TCHP)
+- Generate fisheries advisories for fishermen (PFZ and cold upwelling depth)
+- Estimate oil spill mixing and microplastic drift for coastal safety
 """
 
 import os
@@ -42,9 +35,10 @@ from src.api.schemas import (
     EmbeddingInspectionResponse
 )
 
+# Initialize our FastAPI web application
 app = FastAPI(
     title="OceanEmbed-X Operational Engine",
-    description="Operational 3D Subsurface Ocean Temperature Reconstruction & INCOIS Advisory Platform (SIH26066)",
+    description="Operational 3D Subsurface Ocean Temperature Reconstruction & INCOIS Advisory Platform",
     version="2.0.0"
 )
 
